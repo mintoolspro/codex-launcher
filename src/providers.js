@@ -42,10 +42,19 @@ function normalizeModels(payload) {
       displayName: String(row.name || row.display_name || id),
       description: String(row.description || ''),
       contextWindow: context,
-      inputModalities: row.architecture?.input_modalities || row.input_modalities || ['text'],
+      inputModalities: normalizeInputModalities(
+        row.architecture?.input_modalities || row.input_modalities || ['text']
+      ),
       supportsTools: row.supported_parameters?.includes?.('tools') ?? true
     };
   }).filter(Boolean);
+}
+
+function normalizeInputModalities(value) {
+  const supported = new Set(['text', 'image', 'audio']);
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = [...new Set(values.map((item) => String(item).toLowerCase()).filter((item) => supported.has(item)))];
+  return normalized.length ? normalized : ['text'];
 }
 
 async function fetchModels(provider, apiKey, { signal } = {}) {
@@ -61,4 +70,4 @@ async function fetchModels(provider, apiKey, { signal } = {}) {
   return normalizeModels(payload);
 }
 
-module.exports = { PRESETS, providerDefinitions, normalizeBaseUrl, normalizeModels, fetchModels };
+module.exports = { PRESETS, providerDefinitions, normalizeBaseUrl, normalizeInputModalities, normalizeModels, fetchModels };

@@ -1,0 +1,27 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { normalizeModels } = require('../src/providers');
+const { buildCatalog } = require('../src/catalog');
+
+test('catalog removes provider modalities unsupported by Codex Desktop', () => {
+  const [model] = normalizeModels({
+    data: [{
+      id: 'vendor/omni',
+      architecture: { input_modalities: ['text', 'image', 'video', 'file'] }
+    }]
+  });
+
+  assert.deepEqual(model.inputModalities, ['text', 'image']);
+  assert.deepEqual(
+    buildCatalog([{ ...model, providerId: 'openrouter' }]).models[0].input_modalities,
+    ['text', 'image']
+  );
+});
+
+test('catalog falls back to text when a provider reports only unknown modalities', () => {
+  const catalog = buildCatalog([{ providerId: 'openrouter', id: 'vendor/video', inputModalities: ['video'] }]);
+  assert.deepEqual(catalog.models[0].input_modalities, ['text']);
+});

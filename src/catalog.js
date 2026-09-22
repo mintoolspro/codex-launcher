@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeInputModalities } = require('./providers');
+
 function namespacedModel(providerId, model) {
   return `${providerId}/${model.id}`;
 }
@@ -36,7 +38,7 @@ function toCatalogModel(providerId, model, priority = 0) {
     max_context_window: contextWindow,
     auto_compact_token_limit: Math.floor(contextWindow * 0.84),
     experimental_supported_tools: [],
-    input_modalities: model.inputModalities || ['text'],
+    input_modalities: normalizeInputModalities(model.inputModalities || ['text']),
     supports_search_tool: false
   };
 }
