@@ -27,3 +27,14 @@ test('Responses image input becomes an OpenAI-compatible Chat image_url part', (
     ]
   }]);
 });
+
+test('Responses developer messages become Chat system messages', () => {
+  const translated = responsesToChat({
+    input: [
+      { role: 'developer', content: [{ type: 'input_text', text: 'Follow project instructions.' }] },
+      { role: 'user', content: [{ type: 'input_text', text: 'Hello' }] }
+    ]
+  }, 'vendor/model');
+
+  assert.deepEqual(translated.messages.map(({ role }) => role), ['system', 'user']);
+});

@@ -28,6 +28,12 @@ function chatContent(content) {
   return parts;
 }
 
+function chatRole(role) {
+  if (role === 'developer') return 'system';
+  if (['system', 'user', 'assistant', 'tool'].includes(role)) return role;
+  return 'user';
+}
+
 function responsesToChat(body, upstreamModel) {
   const messages = [];
   if (body.instructions) messages.push({ role: 'system', content: textContent(body.instructions) });
@@ -38,7 +44,7 @@ function responsesToChat(body, upstreamModel) {
     } else if (item.type === 'function_call_output') {
       messages.push({ role: 'tool', tool_call_id: item.call_id, content: textContent(item.output) });
     } else {
-      messages.push({ role: item.role || 'user', content: chatContent(item.content ?? item) });
+      messages.push({ role: chatRole(item.role || 'user'), content: chatContent(item.content ?? item) });
     }
   }
   const tools = (body.tools || []).filter((tool) => tool.type === 'function').map((tool) => ({
@@ -146,4 +152,4 @@ class ChatSseTranslator {
   }
 }
 
-module.exports = { textContent, chatContent, responsesToChat, chatToResponse, chatUsage, ChatSseTranslator };
+module.exports = { textContent, chatContent, chatRole, responsesToChat, chatToResponse, chatUsage, ChatSseTranslator };
