@@ -6,11 +6,19 @@ function namespacedModel(providerId, model) {
   return `${providerId}/${model.id}`;
 }
 
+function compactDisplayName(providerId, model) {
+  const badges = { openrouter: 'OR', deepseek: 'DS' };
+  const badge = badges[providerId] || providerId.slice(0, 3).toUpperCase();
+  const original = String(model.displayName || model.id);
+  const name = original.replace(/^[^:]{1,32}:\s*/, '').trim() || original;
+  return `[${badge}] ${name}`;
+}
+
 function toCatalogModel(providerId, model, priority = 0) {
   const contextWindow = model.contextWindow || 128000;
   return {
     slug: namespacedModel(providerId, model),
-    display_name: `${model.displayName || model.id} (${providerId})`,
+    display_name: compactDisplayName(providerId, model),
     description: model.description || `Model served through ${providerId}`,
     default_reasoning_level: 'medium',
     supported_reasoning_levels: [
@@ -47,4 +55,4 @@ function buildCatalog(selectedModels) {
   return { models: selectedModels.map((entry, index) => toCatalogModel(entry.providerId, entry, index)) };
 }
 
-module.exports = { namespacedModel, toCatalogModel, buildCatalog };
+module.exports = { namespacedModel, compactDisplayName, toCatalogModel, buildCatalog };
