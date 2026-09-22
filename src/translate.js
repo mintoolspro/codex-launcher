@@ -38,15 +38,24 @@ function responsesToChat(body, upstreamModel) {
   const messages = [];
   if (body.instructions) messages.push({ role: 'system', content: textContent(body.instructions) });
   const input = typeof body.input === 'string' ? [{ role: 'user', content: body.input }] : (body.input || []);
+  let pendingCalls = [];
+  const flushCalls = () => {
+    if (!pendingCalls.length) return;
+    messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
+    pendingCalls = [];
+  };
   for (const item of input) {
     if (item.type === 'function_call') {
-      messages.push({ role: 'assistant', content: null, tool_calls: [{ id: item.call_id || item.id, type: 'function', function: { name: item.name, arguments: item.arguments || '' } }] });
+      pendingCalls.push({ id: item.call_id || item.id, type: 'function', function: { name: item.name, arguments: item.arguments || '' } });
     } else if (item.type === 'function_call_output') {
+      flushCalls();
       messages.push({ role: 'tool', tool_call_id: item.call_id, content: textContent(item.output) });
     } else {
+      flushCalls();
       messages.push({ role: chatRole(item.role || 'user'), content: chatContent(item.content ?? item) });
     }
   }
+  flushCalls();
   const tools = (body.tools || []).filter((tool) => tool.type === 'function').map((tool) => ({
     type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.parameters || {} }
   }));

@@ -41,6 +41,14 @@ function normalizeChatMessages(messages = []) {
   }));
 }
 
+function prepareChatMessages(messages, providerId) {
+  const normalized = normalizeChatMessages(messages);
+  if (providerId !== 'deepseek') return normalized;
+  return normalized.map((message) => message.role === 'assistant' && message.tool_calls?.length
+    ? { ...message, reasoning_content: message.reasoning_content || '' }
+    : message);
+}
+
 function modelName(entry) {
   return entry ? `${entry.providerId}/${entry.id}` : '';
 }
@@ -171,7 +179,7 @@ class Gateway {
       if (payload.usage) this.usageStore.record(fallbackModel, payload.usage);
     } else {
       const translated = responsesToChat(visionBody, upstreamModel);
-      translated.messages = normalizeChatMessages(translated.messages);
+      translated.messages = prepareChatMessages(translated.messages, provider.id);
       const response = await fetch(`${normalizeBaseUrl(provider.baseUrl)}/chat/completions`, { method: 'POST', headers: upstreamHeaders(key, req), body: JSON.stringify(translated) });
       if (!response.ok) throw await this.#upstreamFailure(response, `Vision fallback ${fallbackModel}`);
       const upstream = await response.json();
@@ -207,7 +215,7 @@ class Gateway {
   }
   async #chat(req, res, body, provider, key, upstreamModel, requestedModel) {
     const translated = responsesToChat(body, upstreamModel);
-    translated.messages = normalizeChatMessages(translated.messages);
+    translated.messages = prepareChatMessages(translated.messages, provider.id);
     const response = await fetch(`${normalizeBaseUrl(provider.baseUrl)}/chat/completions`, { method: 'POST', headers: upstreamHeaders(key, req), body: JSON.stringify(translated) });
     if (!response.ok) return this.#proxyError(res, response);
     if (!body.stream) {
@@ -247,4 +255,4 @@ class Gateway {
   }
 }
 
-module.exports = { Gateway, readBody, splitModel, normalizeChatMessages, modelName, hasImageInput, supportsInput, withVisionDescription, responseText, json };
+module.exports = { Gateway, readBody, splitModel, normalizeChatMessages, prepareChatMessages, modelName, hasImageInput, supportsInput, withVisionDescription, responseText, json };

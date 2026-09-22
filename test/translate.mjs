@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { responsesToChat } = require('../src/translate');
-const { normalizeChatMessages } = require('../src/gateway');
+const { normalizeChatMessages, prepareChatMessages } = require('../src/gateway');
 
 test('Responses image input becomes an OpenAI-compatible Chat image_url part', () => {
   const imageUrl = 'data:image/png;base64,abc123';
@@ -45,4 +45,32 @@ test('gateway enforces supported roles at the upstream boundary', () => {
     normalizeChatMessages([{ role: 'developer', content: 'a' }, { role: 'unexpected', content: 'b' }]),
     [{ role: 'system', content: 'a' }, { role: 'user', content: 'b' }]
   );
+});
+
+test('parallel Responses function calls become one assistant tool_calls message', () => {
+  const translated = responsesToChat({
+    input: [
+      { type: 'function_call', call_id: 'call_view', name: 'view_image', arguments: '{"path":"a.png"}' },
+      { type: 'function_call', call_id: 'call_exec', name: 'exec_command', arguments: '{"cmd":"file a.png"}' },
+      { type: 'function_call_output', call_id: 'call_view', output: 'viewed image' },
+      { type: 'function_call_output', call_id: 'call_exec', output: 'PNG image data' }
+    ]
+  }, 'vendor/model');
+
+  assert.equal(translated.messages.length, 3);
+  assert.equal(translated.messages[0].role, 'assistant');
+  assert.deepEqual(translated.messages[0].tool_calls.map((call) => call.id), ['call_view', 'call_exec']);
+  assert.deepEqual(translated.messages.slice(1).map((message) => message.tool_call_id), ['call_view', 'call_exec']);
+});
+
+test('DeepSeek tool-call history includes its required reasoning_content field', () => {
+  const history = [{
+    role: 'assistant',
+    content: null,
+    tool_calls: [{ id: 'call_1', type: 'function', function: { name: 'view_image', arguments: '{}' } }]
+  }];
+  const messages = prepareChatMessages(history, 'deepseek');
+  assert.equal(messages[0].reasoning_content, '');
+  assert.equal('reasoning_content' in prepareChatMessages(history, 'openrouter')[0], false);
+  assert.equal('reasoning_content' in prepareChatMessages([{ role: 'assistant', tool_calls: [] }], 'deepseek')[0], false);
 });
