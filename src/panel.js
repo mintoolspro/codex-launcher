@@ -16,6 +16,7 @@ function publicState(controller) {
     providers,
     selectedModels: config.selectedModels || [],
     modelCache: config.modelCache || {},
+    language: config.language || 'auto',
     visionFallbackModel: config.visionFallbackModel || '',
     status: controller.status()
   };
@@ -37,6 +38,13 @@ function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')
     if (req.method === 'POST' && url.pathname === '/api/usage/reset') { controller.usageStore.reset(); json(res, 200, { ok: true }); return true; }
     if (req.method === 'GET' && url.pathname === '/api/traces') { json(res, 200, { traces: controller.traceStore.query({ limit: Number(url.searchParams.get('limit')) || 50 }) }); return true; }
     if (req.method === 'POST' && url.pathname === '/api/traces/reset') { controller.traceStore.reset(); json(res, 200, { ok: true }); return true; }
+    if (req.method === 'POST' && url.pathname === '/api/language') {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.length ? raw.toString('utf8') : '{}');
+      if (!['auto', 'zh', 'en'].includes(body.language)) { json(res, 400, { error: 'Unsupported language' }); return true; }
+      controller.configStore.update((next) => { next.language = body.language; return next; });
+      json(res, 200, { language: body.language }); return true;
+    }
     if (req.method === 'POST' && url.pathname === '/api/launch') { json(res, 200, await controller.launch()); return true; }
     if (req.method === 'POST' && url.pathname === '/api/stop') { json(res, 200, controller.stop()); return true; }
     if (req.method === 'POST' && url.pathname === '/api/vision-fallback') {
