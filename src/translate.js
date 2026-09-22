@@ -68,6 +68,14 @@ function chatUsage(usage = {}) {
   return { input_tokens: input, output_tokens: output, total_tokens: usage.total_tokens || input + output };
 }
 
+function mergeFunctionName(current, update) {
+  if (!update) return current || '';
+  if (!current) return update;
+  if (update === current || current.endsWith(update)) return current;
+  if (update.startsWith(current)) return update;
+  return current + update;
+}
+
 function chatToResponse(payload, requestedModel) {
   const choice = payload.choices?.[0] || {};
   const message = choice.message || {};
@@ -121,7 +129,7 @@ class ChatSseTranslator {
         out += this.event('response.output_item.added', { output_index: outputIndex, item: { id: call.id, type: call.type, status: call.status, call_id: call.call_id, name: call.name, arguments: '' } });
       }
       if (update.id) call.call_id = update.id;
-      if (update.function?.name) call.name += update.function.name;
+      if (update.function?.name) call.name = mergeFunctionName(call.name, update.function.name);
       if (update.function?.arguments) {
         call.arguments += update.function.arguments;
         out += this.event('response.function_call_arguments.delta', { item_id: call.id, output_index: call.outputIndex, delta: update.function.arguments });
@@ -152,4 +160,4 @@ class ChatSseTranslator {
   }
 }
 
-module.exports = { textContent, chatContent, chatRole, responsesToChat, chatToResponse, chatUsage, ChatSseTranslator };
+module.exports = { textContent, chatContent, chatRole, responsesToChat, chatToResponse, chatUsage, mergeFunctionName, ChatSseTranslator };
