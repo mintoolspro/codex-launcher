@@ -14,8 +14,10 @@ function compactDisplayName(providerId, model) {
   return `[${badge}] ${name}`;
 }
 
-function toCatalogModel(providerId, model, priority = 0) {
+function toCatalogModel(providerId, model, priority = 0, { advertiseImage = false } = {}) {
   const contextWindow = model.contextWindow || 128000;
+  const inputModalities = normalizeInputModalities(model.inputModalities || ['text']);
+  if (advertiseImage && !inputModalities.includes('image')) inputModalities.push('image');
   return {
     slug: namespacedModel(providerId, model),
     display_name: compactDisplayName(providerId, model),
@@ -46,13 +48,13 @@ function toCatalogModel(providerId, model, priority = 0) {
     max_context_window: contextWindow,
     auto_compact_token_limit: Math.floor(contextWindow * 0.84),
     experimental_supported_tools: [],
-    input_modalities: normalizeInputModalities(model.inputModalities || ['text']),
+    input_modalities: inputModalities,
     supports_search_tool: false
   };
 }
 
-function buildCatalog(selectedModels) {
-  return { models: selectedModels.map((entry, index) => toCatalogModel(entry.providerId, entry, index)) };
+function buildCatalog(selectedModels, options = {}) {
+  return { models: selectedModels.map((entry, index) => toCatalogModel(entry.providerId, entry, index, options)) };
 }
 
 module.exports = { namespacedModel, compactDisplayName, toCatalogModel, buildCatalog };

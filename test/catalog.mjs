@@ -36,3 +36,11 @@ test('catalog falls back to text when a provider reports only unknown modalities
   const catalog = buildCatalog([{ providerId: 'openrouter', id: 'vendor/video', inputModalities: ['video'] }]);
   assert.deepEqual(catalog.models[0].input_modalities, ['text']);
 });
+
+test('catalog advertises image input for text models when gateway fallback is enabled', () => {
+  const catalog = buildCatalog(
+    [{ providerId: 'deepseek', id: 'text-model', inputModalities: ['text'] }],
+    { advertiseImage: true }
+  );
+  assert.deepEqual(catalog.models[0].input_modalities, ['text', 'image']);
+});

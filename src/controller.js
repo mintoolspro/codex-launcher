@@ -26,8 +26,9 @@ class Controller {
   }
   async launch() {
     await this.start();
-    const selectedModels = this.configStore.read().selectedModels || [];
-    generateFiles({ gatewayUrl: this.gateway.url, gatewayToken: this.gatewayToken, selectedModels, paths: this.paths });
+    const config = this.configStore.read();
+    const selectedModels = config.selectedModels || [];
+    generateFiles({ gatewayUrl: this.gateway.url, gatewayToken: this.gatewayToken, selectedModels, visionFallbackModel: config.visionFallbackModel, paths: this.paths });
     await launchDesktop({ codexHome: this.paths.codexHome, desktopHome: this.paths.desktopHome });
     await new Promise((resolve) => setTimeout(resolve, 800));
     return this.status();

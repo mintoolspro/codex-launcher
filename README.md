@@ -77,7 +77,7 @@ The launcher uses the current `model_catalog_json` configuration key rather than
 
 ### Vision fallback
 
-Choose any selected image-capable model in the **Vision fallback** control. When a request contains an image but the active model is text-only, the gateway first asks the fallback model for a self-contained visual description. It removes the image, adds that description as context, and then sends the request to the originally selected model. The conversation therefore stays on the user's chosen model. Both calls are recorded against the models that actually handled them. Selecting a fallback is also the explicit opt-in for sending images to a different provider.
+Choose any selected image-capable model in the **Vision fallback** control. While fallback is enabled, the generated desktop catalog advertises image input for every selected model so Codex Desktop allows the attachment to reach the gateway. The gateway keeps the provider's real capability metadata: when a request contains an image but the active model is actually text-only, it first asks the fallback model for a self-contained visual description. It removes the image, adds that description as context, and then sends the request to the originally selected model. The conversation therefore stays on the user's chosen model. Both calls are recorded against the models that actually handled them. Selecting a fallback is also the explicit opt-in for sending images to a different provider.
 
 If the fallback is disabled, missing, or fails, the gateway returns a clear error instead of repeatedly rerouting the request.
 

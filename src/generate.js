@@ -6,7 +6,7 @@ const { getPaths, ensureDirectories } = require('./paths');
 
 function tomlString(value) { return JSON.stringify(String(value)); }
 
-function generateFiles({ gatewayUrl, gatewayToken, selectedModels, paths = getPaths() }) {
+function generateFiles({ gatewayUrl, gatewayToken, selectedModels, visionFallbackModel = '', paths = getPaths() }) {
   ensureDirectories(paths);
   if (!selectedModels.length) throw new Error('Select at least one model before launching Codex');
   const defaultModel = `${selectedModels[0].providerId}/${selectedModels[0].id}`;
@@ -27,7 +27,7 @@ function generateFiles({ gatewayUrl, gatewayToken, selectedModels, paths = getPa
     ''
   ].join('\n');
   fs.writeFileSync(paths.codexConfigFile, config, { mode: 0o600 });
-  fs.writeFileSync(paths.catalogFile, `${JSON.stringify(buildCatalog(selectedModels), null, 2)}\n`, { mode: 0o600 });
+  fs.writeFileSync(paths.catalogFile, `${JSON.stringify(buildCatalog(selectedModels, { advertiseImage: Boolean(visionFallbackModel) }), null, 2)}\n`, { mode: 0o600 });
   return { configFile: paths.codexConfigFile, catalogFile: paths.catalogFile, defaultModel };
 }
 
