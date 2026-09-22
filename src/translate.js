@@ -8,6 +8,26 @@ function textContent(content) {
   return content.map((part) => part.text || part.input_text || part.output_text || '').join('');
 }
 
+function chatContent(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return textContent(content);
+  const parts = [];
+  for (const part of content) {
+    if (typeof part === 'string') {
+      parts.push({ type: 'text', text: part });
+      continue;
+    }
+    if (part?.type === 'input_image' || part?.type === 'image_url') {
+      const url = typeof part.image_url === 'string' ? part.image_url : part.image_url?.url;
+      if (url) parts.push({ type: 'image_url', image_url: { url, ...(part.detail ? { detail: part.detail } : {}) } });
+      continue;
+    }
+    const text = part?.text ?? part?.input_text ?? part?.output_text;
+    if (text != null) parts.push({ type: 'text', text: String(text) });
+  }
+  return parts;
+}
+
 function responsesToChat(body, upstreamModel) {
   const messages = [];
   if (body.instructions) messages.push({ role: 'system', content: textContent(body.instructions) });
@@ -18,7 +38,7 @@ function responsesToChat(body, upstreamModel) {
     } else if (item.type === 'function_call_output') {
       messages.push({ role: 'tool', tool_call_id: item.call_id, content: textContent(item.output) });
     } else {
-      messages.push({ role: item.role || 'user', content: textContent(item.content ?? item) });
+      messages.push({ role: item.role || 'user', content: chatContent(item.content ?? item) });
     }
   }
   const tools = (body.tools || []).filter((tool) => tool.type === 'function').map((tool) => ({
@@ -126,4 +146,4 @@ class ChatSseTranslator {
   }
 }
 
-module.exports = { responsesToChat, chatToResponse, chatUsage, ChatSseTranslator };
+module.exports = { textContent, chatContent, responsesToChat, chatToResponse, chatUsage, ChatSseTranslator };
