@@ -41,6 +41,47 @@ function normalizeChatMessages(messages = []) {
   }));
 }
 
+function modelName(entry) {
+  return entry ? `${entry.providerId}/${entry.id}` : '';
+}
+
+function hasImageInput(body) {
+  return Array.isArray(body?.input) && body.input.some((item) =>
+    Array.isArray(item?.content) && item.content.some((part) => part?.type === 'input_image' || part?.type === 'image_url')
+  );
+}
+
+function supportsInput(config, model, modality) {
+  const selected = (config.selectedModels || []).find((entry) => modelName(entry) === model);
+  return Boolean(selected?.inputModalities?.includes(modality));
+}
+
+function withVisionDescription(body, description, fallbackModel) {
+  const input = Array.isArray(body.input) ? body.input.map((item) => {
+    if (!Array.isArray(item?.content)) return item;
+    return {
+      ...item,
+      content: item.content.filter((part) => part?.type !== 'input_image' && part?.type !== 'image_url')
+    };
+  }) : body.input;
+  const note = {
+    role: 'developer',
+    content: [{
+      type: 'input_text',
+      text: `A vision fallback model (${fallbackModel}) analyzed the attached image(s). Use this analysis as visual context:\n\n${description}`
+    }]
+  };
+  return { ...body, input: [note, ...(input || [])] };
+}
+
+function responseText(payload) {
+  return (payload?.output || []).flatMap((item) => item.content || [])
+    .filter((part) => part?.type === 'output_text')
+    .map((part) => part.text || '')
+    .join('\n')
+    .trim();
+}
+
 class Gateway {
   constructor({ configStore, secretStore, usageStore = new UsageStore(), panelHandler = null, token = crypto.randomBytes(24).toString('base64url') }) {
     this.configStore = configStore;
@@ -95,8 +136,51 @@ class Gateway {
     if (!provider.id) throw Object.assign(new Error(`Unknown provider: ${providerId}`), { status: 400 });
     const key = this.secretStore.get(providerId);
     if (!key) throw Object.assign(new Error(`No API key configured for ${provider.name}`), { status: 401 });
-    if (provider.protocol === 'responses') return this.#native(req, res, body, provider, key, upstreamModel, requestedModel);
-    return this.#chat(req, res, body, provider, key, upstreamModel, requestedModel);
+    let routedBody = body;
+    if (hasImageInput(body) && !supportsInput(config, requestedModel, 'image')) {
+      const fallbackModel = config.visionFallbackModel;
+      if (!fallbackModel) throw Object.assign(new Error(`Model ${requestedModel} does not support images. Choose a vision fallback model in Codex Launcher.`), { status: 422 });
+      if (!supportsInput(config, fallbackModel, 'image')) throw Object.assign(new Error(`Configured vision fallback ${fallbackModel} is unavailable or does not support images.`), { status: 422 });
+      const description = await this.#describeImages(req, body, config, fallbackModel);
+      routedBody = withVisionDescription(body, description, fallbackModel);
+    }
+    if (provider.protocol === 'responses') return this.#native(req, res, routedBody, provider, key, upstreamModel, requestedModel);
+    return this.#chat(req, res, routedBody, provider, key, upstreamModel, requestedModel);
+  }
+  async #describeImages(req, body, config, fallbackModel) {
+    const { providerId, upstreamModel } = splitModel(fallbackModel);
+    const provider = { ...PRESETS[providerId], ...(config.providers?.[providerId] || {}) };
+    if (!provider.id) throw Object.assign(new Error(`Unknown vision fallback provider: ${providerId}`), { status: 422 });
+    const key = this.secretStore.get(providerId);
+    if (!key) throw Object.assign(new Error(`No API key configured for vision fallback provider ${provider.name}`), { status: 401 });
+    const visionBody = {
+      ...body,
+      model: fallbackModel,
+      instructions: 'Analyze every attached image accurately. Return a self-contained visual description relevant to the user request. Do not call tools.',
+      tools: [],
+      tool_choice: undefined,
+      stream: false,
+      max_output_tokens: 1024
+    };
+    let payload;
+    if (provider.protocol === 'responses') {
+      const upstreamBody = { ...visionBody, model: upstreamModel };
+      const response = await fetch(`${normalizeBaseUrl(provider.baseUrl)}/responses`, { method: 'POST', headers: upstreamHeaders(key, req), body: JSON.stringify(upstreamBody) });
+      if (!response.ok) throw await this.#upstreamFailure(response, `Vision fallback ${fallbackModel}`);
+      payload = await response.json();
+      if (payload.usage) this.usageStore.record(fallbackModel, payload.usage);
+    } else {
+      const translated = responsesToChat(visionBody, upstreamModel);
+      translated.messages = normalizeChatMessages(translated.messages);
+      const response = await fetch(`${normalizeBaseUrl(provider.baseUrl)}/chat/completions`, { method: 'POST', headers: upstreamHeaders(key, req), body: JSON.stringify(translated) });
+      if (!response.ok) throw await this.#upstreamFailure(response, `Vision fallback ${fallbackModel}`);
+      const upstream = await response.json();
+      payload = chatToResponse(upstream, fallbackModel);
+      this.usageStore.record(fallbackModel, payload.usage);
+    }
+    const description = responseText(payload);
+    if (!description) throw Object.assign(new Error(`Vision fallback ${fallbackModel} returned no image description.`), { status: 502 });
+    return description;
   }
   async #native(req, res, body, provider, key, upstreamModel, requestedModel) {
     const upstreamBody = { ...body, model: upstreamModel };
@@ -155,6 +239,12 @@ class Gateway {
     res.writeHead(response.status, { 'content-type': response.headers.get('content-type') || 'application/json' });
     res.end(text);
   }
+  async #upstreamFailure(response, label) {
+    const text = await response.text();
+    let detail = text.slice(0, 500);
+    try { detail = JSON.parse(text).error?.message || detail; } catch {}
+    return Object.assign(new Error(`${label} failed (${response.status}): ${detail}`), { status: 502 });
+  }
 }
 
-module.exports = { Gateway, readBody, splitModel, normalizeChatMessages, json };
+module.exports = { Gateway, readBody, splitModel, normalizeChatMessages, modelName, hasImageInput, supportsInput, withVisionDescription, responseText, json };

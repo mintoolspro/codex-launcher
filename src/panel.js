@@ -12,7 +12,13 @@ function publicState(controller) {
     ...(config.providers?.[preset.id] || {}),
     hasKey: controller.secretStore.has(preset.id)
   }));
-  return { providers, selectedModels: config.selectedModels || [], modelCache: config.modelCache || {}, status: controller.status() };
+  return {
+    providers,
+    selectedModels: config.selectedModels || [],
+    modelCache: config.modelCache || {},
+    visionFallbackModel: config.visionFallbackModel || '',
+    status: controller.status()
+  };
 }
 
 function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')) {
@@ -31,6 +37,18 @@ function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')
     if (req.method === 'POST' && url.pathname === '/api/usage/reset') { controller.usageStore.reset(); json(res, 200, { ok: true }); return true; }
     if (req.method === 'POST' && url.pathname === '/api/launch') { json(res, 200, await controller.launch()); return true; }
     if (req.method === 'POST' && url.pathname === '/api/stop') { json(res, 200, controller.stop()); return true; }
+    if (req.method === 'POST' && url.pathname === '/api/vision-fallback') {
+      const raw = await readBody(req);
+      const body = JSON.parse(raw.length ? raw.toString('utf8') : '{}');
+      const model = typeof body.model === 'string' ? body.model : '';
+      const config = controller.configStore.read();
+      const selected = (config.selectedModels || []).find((entry) => `${entry.providerId}/${entry.id}` === model);
+      if (model && (!selected || !selected.inputModalities?.includes('image'))) {
+        json(res, 400, { error: 'Vision fallback must be a selected model that supports image input' }); return true;
+      }
+      controller.configStore.update((next) => { next.visionFallbackModel = model; return next; });
+      json(res, 200, publicState(controller)); return true;
+    }
     const providerMatch = url.pathname.match(/^\/api\/providers\/([^/]+)(?:\/(models))?$/);
     if (req.method === 'POST' && providerMatch) {
       const id = providerMatch[1], preset = PRESETS[id];
@@ -56,7 +74,11 @@ function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')
       const raw = await readBody(req);
       const body = JSON.parse(raw.length ? raw.toString('utf8') : '{}');
       if (!Array.isArray(body.models)) { json(res, 400, { error: 'models must be an array' }); return true; }
-      controller.configStore.update((next) => { next.selectedModels = body.models; return next; });
+      controller.configStore.update((next) => {
+        next.selectedModels = body.models;
+        if (next.visionFallbackModel && !body.models.some((entry) => `${entry.providerId}/${entry.id}` === next.visionFallbackModel && entry.inputModalities?.includes('image'))) next.visionFallbackModel = '';
+        return next;
+      });
       json(res, 200, publicState(controller)); return true;
     }
     json(res, 404, { error: 'Unknown API endpoint' }); return true;

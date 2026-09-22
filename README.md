@@ -27,7 +27,7 @@ npm install
 ./run-app.sh
 ```
 
-The window lets you save a provider URL/key, fetch the live model catalog, search it, select models, and launch Codex. Closing the window leaves the menu-bar app active.
+The window lets you save a provider URL/key, fetch the live model catalog, search it, select models, choose an optional vision fallback, and launch Codex. Closing the window leaves the menu-bar app active.
 
 Keys are stored in macOS Keychain under service `pro.mintools.codex-launcher`. If Keychain is unavailable, the fallback is an AES-GCM encrypted, machine-bound file with mode `0600`. Local control APIs expose only `hasKey`.
 
@@ -58,6 +58,8 @@ Supported bridge behavior:
 - stateful streaming SSE events, including text deltas and function-call argument deltas
 - tool argument reassembly and `call_id` preservation
 - provider/model namespace routing such as `openrouter/anthropic/claude-...`
+- image forwarding for multimodal Chat Completions models
+- optional two-stage vision fallback for text-only models
 - input/output/total usage capture on native and bridged, streaming and non-streaming paths
 
 The Responses API is broader than Chat Completions. Unsupported features are not silently emulated. The bridge focuses on the request and event forms used by Codex and should be extended explicitly as providers add capabilities.
@@ -73,6 +75,12 @@ Provider model results are normalized and cached. Only checked models are writte
 
 The launcher uses the current `model_catalog_json` configuration key rather than relying on an undocumented `models.json` filename.
 
+### Vision fallback
+
+Choose any selected image-capable model in the **Vision fallback** control. When a request contains an image but the active model is text-only, the gateway first asks the fallback model for a self-contained visual description. It removes the image, adds that description as context, and then sends the request to the originally selected model. The conversation therefore stays on the user's chosen model. Both calls are recorded against the models that actually handled them. Selecting a fallback is also the explicit opt-in for sending images to a different provider.
+
+If the fallback is disabled, missing, or fails, the gateway returns a clear error instead of repeatedly rerouting the request.
+
 ## Usage overview
 
 The gateway stores daily and per-model aggregates in `~/.codex-launcher/usage.json`. The UI shows total/input/output tokens, request count, model share, last use, and 7/14/30-day charts. Reset removes only these local aggregates.
@@ -84,7 +92,7 @@ npm run check
 npm test
 ```
 
-The tests use real loopback HTTP servers and cover routing/auth interception, non-streaming conversion, streaming text, streaming tool calls, argument reconstruction, `call_id`, all four usage paths, daily buckets, and descending aggregation.
+The tests use real loopback HTTP servers and cover routing/auth interception, non-streaming conversion, streaming text, streaming tool calls, image forwarding, two-stage vision fallback, argument reconstruction, `call_id`, all four usage paths, daily buckets, and descending aggregation.
 
 ## Packaging
 
