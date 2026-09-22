@@ -33,6 +33,14 @@ function upstreamHeaders(key, req) {
   return headers;
 }
 
+function normalizeChatMessages(messages = []) {
+  const supported = new Set(['system', 'user', 'assistant', 'tool']);
+  return messages.map((message) => ({
+    ...message,
+    role: message.role === 'developer' ? 'system' : (supported.has(message.role) ? message.role : 'user')
+  }));
+}
+
 class Gateway {
   constructor({ configStore, secretStore, usageStore = new UsageStore(), panelHandler = null, token = crypto.randomBytes(24).toString('base64url') }) {
     this.configStore = configStore;
@@ -115,6 +123,7 @@ class Gateway {
   }
   async #chat(req, res, body, provider, key, upstreamModel, requestedModel) {
     const translated = responsesToChat(body, upstreamModel);
+    translated.messages = normalizeChatMessages(translated.messages);
     const response = await fetch(`${normalizeBaseUrl(provider.baseUrl)}/chat/completions`, { method: 'POST', headers: upstreamHeaders(key, req), body: JSON.stringify(translated) });
     if (!response.ok) return this.#proxyError(res, response);
     if (!body.stream) {
@@ -148,4 +157,4 @@ class Gateway {
   }
 }
 
-module.exports = { Gateway, readBody, splitModel, json };
+module.exports = { Gateway, readBody, splitModel, normalizeChatMessages, json };
