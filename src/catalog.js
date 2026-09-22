@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeInputModalities } = require('./providers');
+const { normalizeInputModalities, reasoningLevelEntries } = require('./providers');
 
 function namespacedModel(providerId, model) {
   return `${providerId}/${model.id}`;
@@ -17,17 +17,18 @@ function compactDisplayName(providerId, model) {
 function toCatalogModel(providerId, model, priority = 0, { advertiseImage = false } = {}) {
   const contextWindow = model.contextWindow || 128000;
   const inputModalities = normalizeInputModalities(model.inputModalities || ['text']);
+  const reasoningLevels = reasoningLevelEntries(model);
+  const requestedDefault = model.defaultReasoningLevel;
+  const defaultReasoningLevel = reasoningLevels.some((entry) => entry.effort === requestedDefault)
+    ? requestedDefault
+    : reasoningLevels[0]?.effort || 'none';
   if (advertiseImage && !inputModalities.includes('image')) inputModalities.push('image');
   return {
     slug: namespacedModel(providerId, model),
     display_name: compactDisplayName(providerId, model),
     description: model.description || `Model served through ${providerId}`,
-    default_reasoning_level: 'medium',
-    supported_reasoning_levels: [
-      { effort: 'low', description: 'Faster responses' },
-      { effort: 'medium', description: 'Balanced reasoning' },
-      { effort: 'high', description: 'Deeper reasoning' }
-    ],
+    default_reasoning_level: defaultReasoningLevel,
+    supported_reasoning_levels: reasoningLevels,
     shell_type: 'shell_command',
     visibility: 'list',
     supported_in_api: true,

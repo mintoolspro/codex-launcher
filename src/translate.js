@@ -8,6 +8,13 @@ function textContent(content) {
   return content.map((part) => part.text || part.input_text || part.output_text || '').join('');
 }
 
+function reasoningText(item) {
+  if (!item) return '';
+  if (typeof item.reasoning_content === 'string') return item.reasoning_content;
+  const parts = [...(Array.isArray(item.content) ? item.content : []), ...(Array.isArray(item.summary) ? item.summary : [])];
+  return parts.map((part) => part?.text || '').join('');
+}
+
 function chatContent(content) {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return textContent(content);
@@ -39,20 +46,26 @@ function responsesToChat(body, upstreamModel) {
   if (body.instructions) messages.push({ role: 'system', content: textContent(body.instructions) });
   const input = typeof body.input === 'string' ? [{ role: 'user', content: body.input }] : (body.input || []);
   let pendingCalls = [];
+  let pendingReasoning = '';
   const flushCalls = () => {
     if (!pendingCalls.length) return;
-    messages.push({ role: 'assistant', content: null, tool_calls: pendingCalls });
+    messages.push({ role: 'assistant', content: null, ...(pendingReasoning ? { reasoning_content: pendingReasoning } : {}), tool_calls: pendingCalls });
     pendingCalls = [];
+    pendingReasoning = '';
   };
   for (const item of input) {
-    if (item.type === 'function_call') {
-      pendingCalls.push({ id: item.call_id || item.id, type: 'function', function: { name: item.name, arguments: item.arguments || '' } });
-    } else if (item.type === 'function_call_output') {
+    if (item.type === 'reasoning') {
+      pendingReasoning += reasoningText(item);
+    } else if (item.type === 'function_call' || item.type === 'custom_tool_call') {
+      pendingCalls.push({ id: item.call_id || item.id, type: 'function', function: { name: item.name, arguments: item.arguments ?? item.input ?? '' } });
+    } else if (item.type === 'function_call_output' || item.type === 'custom_tool_call_output') {
       flushCalls();
       messages.push({ role: 'tool', tool_call_id: item.call_id, content: textContent(item.output) });
     } else {
       flushCalls();
-      messages.push({ role: chatRole(item.role || 'user'), content: chatContent(item.content ?? item) });
+      const role = chatRole(item.role || 'user');
+      messages.push({ role, content: chatContent(item.content ?? item), ...(role === 'assistant' && pendingReasoning ? { reasoning_content: pendingReasoning } : {}) });
+      pendingReasoning = '';
     }
   }
   flushCalls();
@@ -89,6 +102,7 @@ function chatToResponse(payload, requestedModel) {
   const choice = payload.choices?.[0] || {};
   const message = choice.message || {};
   const output = [];
+  if (message.reasoning_content) output.push({ id: `rs_${crypto.randomUUID()}`, type: 'reasoning', status: 'completed', content: [{ type: 'reasoning_text', text: message.reasoning_content }], summary: [] });
   if (message.content) output.push({ id: `msg_${crypto.randomUUID()}`, type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: message.content, annotations: [] }] });
   for (const call of message.tool_calls || []) output.push({ id: `fc_${crypto.randomUUID()}`, type: 'function_call', status: 'completed', call_id: call.id, name: call.function?.name, arguments: call.function?.arguments || '' });
   return {
@@ -106,10 +120,13 @@ class ChatSseTranslator {
     this.textIndex = null;
     this.text = '';
     this.calls = new Map();
+    this.reasoning = '';
+    this.reasoningItem = null;
     this.usage = chatUsage();
+    this.eventCounts = {};
     this.created = Math.floor(Date.now() / 1000);
   }
-  event(type, data) { return `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: this.sequence++, ...data })}\n\n`; }
+  event(type, data) { this.eventCounts[type] = (this.eventCounts[type] || 0) + 1; return `event: ${type}\ndata: ${JSON.stringify({ type, sequence_number: this.sequence++, ...data })}\n\n`; }
   begin() {
     return this.event('response.created', { response: { id: this.responseId, object: 'response', created_at: this.created, status: 'in_progress', model: this.model, output: [] } });
   }
@@ -117,22 +134,31 @@ class ChatSseTranslator {
     if (chunk.usage) this.usage = chatUsage(chunk.usage);
     const delta = chunk.choices?.[0]?.delta || {};
     let out = '';
+    if (delta.reasoning_content) {
+      if (!this.reasoningItem) {
+        this.reasoningItem = { id: `rs_${crypto.randomUUID()}`, type: 'reasoning', status: 'in_progress', content: [], summary: [] };
+        out += this.event('response.output_item.added', { output_index: 0, item: this.reasoningItem });
+      }
+      this.reasoning += delta.reasoning_content;
+      out += this.event('response.reasoning_text.delta', { item_id: this.reasoningItem.id, output_index: 0, content_index: 0, delta: delta.reasoning_content });
+    }
     if (delta.content) {
       if (this.textIndex == null) {
-        this.textIndex = 0;
+        this.textIndex = this.reasoningItem ? 1 : 0;
         const item = { id: `msg_${crypto.randomUUID()}`, type: 'message', role: 'assistant', status: 'in_progress', content: [] };
         this.textItem = item;
-        out += this.event('response.output_item.added', { output_index: 0, item });
-        out += this.event('response.content_part.added', { item_id: item.id, output_index: 0, content_index: 0, part: { type: 'output_text', text: '', annotations: [] } });
+        out += this.event('response.output_item.added', { output_index: this.textIndex, item });
+        out += this.event('response.content_part.added', { item_id: item.id, output_index: this.textIndex, content_index: 0, part: { type: 'output_text', text: '', annotations: [] } });
       }
       this.text += delta.content;
-      out += this.event('response.output_text.delta', { item_id: this.textItem.id, output_index: 0, content_index: 0, delta: delta.content });
+      out += this.event('response.output_text.delta', { item_id: this.textItem.id, output_index: this.textIndex, content_index: 0, delta: delta.content });
     }
     for (const update of delta.tool_calls || []) {
       const key = update.index ?? this.calls.size;
       let call = this.calls.get(key);
       if (!call) {
-        const outputIndex = (this.textIndex == null ? 0 : 1) + this.calls.size;
+        const base = Math.max(this.reasoningItem ? 1 : 0, this.textIndex == null ? 0 : this.textIndex + 1);
+        const outputIndex = base + this.calls.size;
         call = { id: `fc_${crypto.randomUUID()}`, type: 'function_call', status: 'in_progress', call_id: update.id || `call_${crypto.randomUUID()}`, name: update.function?.name || '', arguments: '', outputIndex };
         this.calls.set(key, call);
         out += this.event('response.output_item.added', { output_index: outputIndex, item: { id: call.id, type: call.type, status: call.status, call_id: call.call_id, name: call.name, arguments: '' } });
@@ -149,12 +175,18 @@ class ChatSseTranslator {
   end() {
     let out = '';
     const output = [];
+    if (this.reasoningItem) {
+      const item = { ...this.reasoningItem, status: 'completed', content: [{ type: 'reasoning_text', text: this.reasoning }] };
+      output.push(item);
+      out += this.event('response.reasoning_text.done', { item_id: item.id, output_index: 0, content_index: 0, text: this.reasoning });
+      out += this.event('response.output_item.done', { output_index: 0, item });
+    }
     if (this.textIndex != null) {
       const item = { ...this.textItem, status: 'completed', content: [{ type: 'output_text', text: this.text, annotations: [] }] };
       output.push(item);
-      out += this.event('response.output_text.done', { item_id: item.id, output_index: 0, content_index: 0, text: this.text });
-      out += this.event('response.content_part.done', { item_id: item.id, output_index: 0, content_index: 0, part: item.content[0] });
-      out += this.event('response.output_item.done', { output_index: 0, item });
+      out += this.event('response.output_text.done', { item_id: item.id, output_index: this.textIndex, content_index: 0, text: this.text });
+      out += this.event('response.content_part.done', { item_id: item.id, output_index: this.textIndex, content_index: 0, part: item.content[0] });
+      out += this.event('response.output_item.done', { output_index: this.textIndex, item });
     }
     for (const call of this.calls.values()) {
       const item = { id: call.id, type: call.type, status: 'completed', call_id: call.call_id, name: call.name, arguments: call.arguments };
@@ -169,4 +201,4 @@ class ChatSseTranslator {
   }
 }
 
-module.exports = { textContent, chatContent, chatRole, responsesToChat, chatToResponse, chatUsage, mergeFunctionName, ChatSseTranslator };
+module.exports = { textContent, reasoningText, chatContent, chatRole, responsesToChat, chatToResponse, chatUsage, mergeFunctionName, ChatSseTranslator };

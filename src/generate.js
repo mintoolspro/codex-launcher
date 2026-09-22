@@ -24,6 +24,13 @@ function generateFiles({ gatewayUrl, gatewayToken, selectedModels, visionFallbac
     'request_max_retries = 2',
     'stream_max_retries = 2',
     'stream_idle_timeout_ms = 300000',
+    '',
+    '[otel]',
+    'environment = "codex-launcher"',
+    'log_user_prompt = false',
+    `exporter = { otlp-http = { endpoint = ${tomlString(`${gatewayUrl.replace(/\/v1$/, '')}/otel/v1/logs`)}, protocol = "json", headers = { "x-codex-launcher-token" = ${tomlString(gatewayToken)} } } }`,
+    `trace_exporter = { otlp-http = { endpoint = ${tomlString(`${gatewayUrl.replace(/\/v1$/, '')}/otel/v1/traces`)}, protocol = "json", headers = { "x-codex-launcher-token" = ${tomlString(gatewayToken)} } } }`,
+    'metrics_exporter = "none"',
     ''
   ].join('\n');
   fs.writeFileSync(paths.codexConfigFile, config, { mode: 0o600 });

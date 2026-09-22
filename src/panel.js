@@ -35,6 +35,8 @@ function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')
     if (req.method === 'GET' && url.pathname === '/api/state') { json(res, 200, publicState(controller)); return true; }
     if (req.method === 'GET' && url.pathname === '/api/usage') { json(res, 200, controller.usageStore.query(Number(url.searchParams.get('days')) || 7)); return true; }
     if (req.method === 'POST' && url.pathname === '/api/usage/reset') { controller.usageStore.reset(); json(res, 200, { ok: true }); return true; }
+    if (req.method === 'GET' && url.pathname === '/api/traces') { json(res, 200, { traces: controller.traceStore.query({ limit: Number(url.searchParams.get('limit')) || 50 }) }); return true; }
+    if (req.method === 'POST' && url.pathname === '/api/traces/reset') { controller.traceStore.reset(); json(res, 200, { ok: true }); return true; }
     if (req.method === 'POST' && url.pathname === '/api/launch') { json(res, 200, await controller.launch()); return true; }
     if (req.method === 'POST' && url.pathname === '/api/stop') { json(res, 200, controller.stop()); return true; }
     if (req.method === 'POST' && url.pathname === '/api/vision-fallback') {
@@ -59,7 +61,15 @@ function createPanelHandler(controller, uiDir = path.join(__dirname, '..', 'ui')
         const config = controller.configStore.read();
         const provider = { ...preset, ...(config.providers?.[id] || {}) };
         const models = await fetchModels(provider, controller.secretStore.get(id));
-        controller.configStore.update((next) => { next.modelCache ||= {}; next.modelCache[id] = { fetchedAt: new Date().toISOString(), models }; return next; });
+        controller.configStore.update((next) => {
+          next.modelCache ||= {}; next.modelCache[id] = { fetchedAt: new Date().toISOString(), models };
+          next.selectedModels = (next.selectedModels || []).map((entry) => {
+            if (entry.providerId !== id) return entry;
+            const current = models.find((model) => model.id === entry.id);
+            return current ? { providerId: id, ...current } : entry;
+          });
+          return next;
+        });
         json(res, 200, { models }); return true;
       }
       controller.configStore.update((next) => {

@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="920" viewBox="0 0 1440 920" role="img" aria-labelledby="title desc">
+  <title id="title">Codex Launcher provider compatibility mapping</title>
+  <desc id="desc">Detailed request, fallback, translation, tracing, and response flow between Codex Desktop, the local gateway, OpenRouter, and DeepSeek.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#081020"/><stop offset="1" stop-color="#111a31"/></linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#3fd8ff"/><stop offset="1" stop-color="#65efbd"/></linearGradient>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0l10 5-10 5z" fill="#69d9f2"/></marker>
+    <style>
+      .box{fill:#111b32;stroke:#314261;stroke-width:2;rx:16}.provider{fill:#14243a;stroke:#4d7795;stroke-width:2;rx:16}.title{font:700 24px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#f3f7ff}.head{font:700 18px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#f3f7ff}.text{font:14px -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;fill:#b8c8df}.small{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;fill:#8fa8c5}.accent{fill:#62eac0}.warn{fill:#ffd17a}.line{fill:none;stroke:#69d9f2;stroke-width:2.5;marker-end:url(#arrow)}.dash{fill:none;stroke:#9a7cff;stroke-width:2;stroke-dasharray:8 7;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1440" height="920" fill="url(#bg)"/>
+  <text x="60" y="58" class="title">Codex Launcher · Provider Compatibility &amp; Trace Map</text>
+  <text x="60" y="86" class="text">Responses is the stable Codex-facing contract; provider adapters choose native pass-through first and retain a Chat bridge fallback.</text>
+
+  <rect x="60" y="135" width="260" height="170" class="box"/>
+  <text x="86" y="172" class="head">Official Codex Desktop</text>
+  <text x="86" y="204" class="text">Isolated CODEX_HOME</text>
+  <text x="86" y="230" class="small">POST /v1/responses</text>
+  <text x="86" y="252" class="small">model: providerId/model</text>
+  <text x="86" y="274" class="small">SSE + tool/custom-tool events</text>
+
+  <rect x="395" y="120" width="650" height="210" class="box"/>
+  <text x="425" y="158" class="head">Authenticated loopback gateway · 127.0.0.1:random</text>
+  <text x="425" y="191" class="text">1. Bearer token + body validation</text>
+  <text x="425" y="217" class="text">2. Trace ID, redaction, request summary</text>
+  <text x="425" y="243" class="text">3. Split namespace and remove provider prefix</text>
+  <text x="425" y="269" class="text">4. Inspect image + reasoning capabilities; map effective effort</text>
+  <text x="425" y="295" class="text">5. Select native Responses or compatibility fallback</text>
+
+  <path d="M320 220H395" class="line"/>
+  <text x="327" y="207" class="small">Responses</text>
+
+  <rect x="1110" y="130" width="270" height="185" class="box"/>
+  <text x="1137" y="169" class="head">Vision decision</text>
+  <text x="1137" y="201" class="text">Model supports image?</text>
+  <text x="1137" y="229" class="accent">YES · forward input_image</text>
+  <text x="1137" y="257" class="warn">NO · call fallback model</text>
+  <text x="1137" y="281" class="small">description → selected model</text>
+  <path d="M1045 220H1110" class="line"/>
+
+  <rect x="80" y="410" width="570" height="250" class="provider"/>
+  <text x="110" y="450" class="head">OpenRouter adapter</text>
+  <text x="110" y="483" class="accent">Primary: POST /api/v1/responses</text>
+  <text x="110" y="510" class="text">• OpenResponses pass-through for text, image, reasoning and tools</text>
+  <text x="110" y="538" class="text">• Adds trace_id, app attribution and routing metadata</text>
+  <text x="110" y="566" class="text">• /models capabilities decide if reasoning controls are exposed</text>
+  <text x="110" y="600" class="warn">Fallback only when Responses endpoint/model is unsupported:</text>
+  <text x="110" y="628" class="small">effort identity map · Responses → Chat/image_url/SSE → Responses</text>
+
+  <rect x="790" y="410" width="570" height="250" class="provider"/>
+  <text x="820" y="450" class="head">DeepSeek adapter</text>
+  <text x="820" y="483" class="accent">Primary: POST /responses</text>
+  <text x="820" y="510" class="text">• Native reasoning, function calls, apply_patch and images</text>
+  <text x="820" y="538" class="text">• developer role normalized to system (avoids user-role downgrade)</text>
+  <text x="820" y="566" class="text">• Effort catalog: low / high / max (default high)</text>
+  <text x="820" y="600" class="warn">Chat fallback compatibility rule:</text>
+  <text x="820" y="628" class="small">medium→high · ultra→max · tools preserve reasoning_content + call_id</text>
+
+  <path d="M590 330L360 410" class="line"/>
+  <path d="M850 330L1070 410" class="line"/>
+  <text x="385" y="372" class="small">providerId=openrouter</text>
+  <text x="900" y="372" class="small">providerId=deepseek</text>
+
+  <rect x="395" y="735" width="650" height="130" class="box"/>
+  <text x="425" y="773" class="head">Unified response boundary</text>
+  <text x="425" y="805" class="text">SSE event preservation / Chat state machine · call_id pairing · usage normalization</text>
+  <text x="425" y="833" class="small">response.created → reasoning/text/tool deltas → output_item.done → response.completed</text>
+  <path d="M360 660L550 735" class="line"/>
+  <path d="M1070 660L890 735" class="line"/>
+  <path d="M395 800H255Q190 800 190 735V305" class="line"/>
+
+  <rect x="1090" y="720" width="290" height="155" class="box"/>
+  <text x="1120" y="758" class="head">Local Trace viewer</text>
+  <text x="1120" y="790" class="text">Gateway spans + payload previews</text>
+  <text x="1120" y="816" class="text">Codex OTLP/JSON logs + spans</text>
+  <text x="1120" y="842" class="small">0600 JSONL · 20 MiB rotation</text>
+  <path d="M1045 800H1090" class="dash"/>
+  <path d="M270 305C270 690 1190 660 1190 720" class="dash"/>
+  <text x="690" y="690" class="small">OTel: API · SSE · approvals · tool_result</text>
+</svg>

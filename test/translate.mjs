@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { responsesToChat } = require('../src/translate');
+const { responsesToChat, chatToResponse, ChatSseTranslator } = require('../src/translate');
 const { normalizeChatMessages, prepareChatMessages } = require('../src/gateway');
 
 test('Responses image input becomes an OpenAI-compatible Chat image_url part', () => {
@@ -73,4 +73,29 @@ test('DeepSeek tool-call history includes its required reasoning_content field',
   assert.equal(messages[0].reasoning_content, '');
   assert.equal('reasoning_content' in prepareChatMessages(history, 'openrouter')[0], false);
   assert.equal('reasoning_content' in prepareChatMessages([{ role: 'assistant', tool_calls: [] }], 'deepseek')[0], false);
+  assert.equal(prepareChatMessages([{ role: 'assistant', content: 'done' }], 'deepseek', { hasTools: true })[0].reasoning_content, '');
+});
+
+test('reasoning and custom tool history survive the Responses to Chat bridge', () => {
+  const translated = responsesToChat({
+    tools: [{ type: 'custom', name: 'apply_patch' }],
+    input: [
+      { type: 'reasoning', content: [{ type: 'reasoning_text', text: 'inspect first' }] },
+      { type: 'custom_tool_call', call_id: 'call_patch', name: 'apply_patch', input: '*** Begin Patch' },
+      { type: 'custom_tool_call_output', call_id: 'call_patch', output: 'Done' }
+    ]
+  }, 'model');
+  assert.equal(translated.messages[0].reasoning_content, 'inspect first');
+  assert.equal(translated.messages[0].tool_calls[0].function.arguments, '*** Begin Patch');
+  assert.equal(translated.messages[1].tool_call_id, 'call_patch');
+});
+
+test('DeepSeek reasoning is represented in non-streaming and streaming Responses output', () => {
+  const response = chatToResponse({ choices: [{ message: { reasoning_content: 'think', content: 'answer' } }] }, 'deepseek/model');
+  assert.equal(response.output[0].type, 'reasoning');
+  assert.equal(response.output[0].content[0].text, 'think');
+  const translator = new ChatSseTranslator('deepseek/model');
+  const text = translator.begin() + translator.push({ choices: [{ delta: { reasoning_content: 'thi' } }] }) + translator.push({ choices: [{ delta: { reasoning_content: 'nk', content: 'ok' } }] }) + translator.end().data;
+  assert.match(text, /response.reasoning_text.delta/);
+  assert.match(text, /"text":"think"/);
 });

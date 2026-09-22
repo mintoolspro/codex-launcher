@@ -19,9 +19,22 @@ function launchDesktop({ appPath = discoverDesktopApp(), codexHome, desktopHome 
   });
 }
 
+function isIsolatedDesktopCommand(command, desktopHome) {
+  const text = String(command || '');
+  return text.includes(`--user-data-dir=${desktopHome}`)
+    && /\/(ChatGPT|Codex)\.app\/Contents\/(MacOS|Frameworks)\//.test(text)
+    && !text.includes('/Codex Launcher.app/');
+}
+
 function findDesktopPids(desktopHome) {
   try {
-    return execFileSync('/usr/bin/pgrep', ['-f', `user-data-dir=${desktopHome}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/).filter(Boolean).map(Number).filter((pid) => pid !== process.pid);
+    const candidates = execFileSync('/usr/bin/pgrep', ['-f', `user-data-dir=${desktopHome}`], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/).filter(Boolean).map(Number).filter((pid) => pid !== process.pid);
+    return candidates.filter((pid) => {
+      try {
+        const command = execFileSync('/bin/ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+        return isIsolatedDesktopCommand(command, desktopHome);
+      } catch { return false; }
+    });
   } catch { return []; }
 }
 
@@ -31,4 +44,4 @@ function stopDesktop(desktopHome) {
   return pids;
 }
 
-module.exports = { discoverDesktopApp, launchDesktop, findDesktopPids, stopDesktop };
+module.exports = { discoverDesktopApp, launchDesktop, isIsolatedDesktopCommand, findDesktopPids, stopDesktop };

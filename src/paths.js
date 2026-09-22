@@ -14,6 +14,7 @@ function getPaths(root = process.env.CODEX_LAUNCHER_HOME || path.join(os.homedir
     secretsFile: path.join(base, 'secrets.enc.json'),
     machineSaltFile: path.join(base, '.machine-salt'),
     usageFile: path.join(base, 'usage.json'),
+    traceFile: path.join(base, 'traces.jsonl'),
     catalogFile: path.join(base, 'codex', 'model_catalog.json'),
     codexConfigFile: path.join(base, 'codex', 'config.toml'),
     logDir: path.join(base, 'logs')
