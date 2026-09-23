@@ -1,6 +1,6 @@
 {
   "name": "codex-launcher",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Run an isolated Codex Desktop instance with BYOK model providers.",
   "author": "mintoolspro",
   "license": "MIT",

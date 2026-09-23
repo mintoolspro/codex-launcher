@@ -8,14 +8,14 @@ const { Gateway } = require('./gateway');
 const { generateFiles } = require('./generate');
 const { getPaths, ensureDirectories } = require('./paths');
 const { launchDesktop, findDesktopPids, stopDesktop, discoverDesktopApp } = require('./launch');
-const { PRESETS, providerModelProfile, reasoningLevelsFor, defaultReasoningLevel } = require('./providers');
+const { PRESETS, providerModelProfile, reasoningLevelsFor, defaultReasoningLevel, modelPricing } = require('./providers');
 
 class Controller {
   constructor({ paths = getPaths() } = {}) {
     this.paths = ensureDirectories(paths);
     this.configStore = new ConfigStore(this.paths);
     this.secretStore = new SecretStore(this.paths);
-    this.usageStore = new UsageStore(this.paths);
+    this.usageStore = new UsageStore(this.paths, () => new Date(), (model) => modelPricing(this.configStore.read(), model));
     this.traceStore = new TraceStore(this.paths);
     this.gateway = null;
     this.panelHandler = null;

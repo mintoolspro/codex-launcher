@@ -122,13 +122,15 @@ If the fallback is disabled, missing, or fails, the gateway returns a clear erro
 
 ## Usage overview
 
-The gateway stores daily and per-model aggregates in `~/.codex-launcher/usage.json`. The UI shows total/input/output tokens, request count, model share, last use, and 7/14/30-day charts. Reset removes only these local aggregates.
+The gateway stores daily and per-model aggregates in `~/.codex-launcher/usage.json`. The UI shows total/input/output tokens in millions (`M`, two decimals), request count, model share, last use, estimated cost per model, estimated total cost, and 7/14/30-day token and cost charts. Reset removes only these local aggregates.
+
+OpenRouter prices come from each model's live `/models` metadata. DeepSeek's models endpoint does not include prices, so Launcher uses the [official DeepSeek pricing table](https://api-docs.deepseek.com/quick_start/pricing/) and applies its UTC peak/off-peak schedule. Cached-input prices are used when the upstream reports cached tokens. Costs are estimates: historical records created before pricing support are backfilled using current rates, and provider rounding, discounts, routing choices, taxes, or later price changes can make the final provider bill differ. Refresh a provider's model list to pick up current OpenRouter pricing.
 
 ## Traces and debugging
 
 Launcher combines two observability sources:
 
-1. Gateway trace events cover the exact BYOK path: requested/actual model, namespace routing, image fallback, Responses or Chat transport, translated payload previews, upstream HTTP status, first-byte latency, SSE event counts, tool calls, usage, and failures.
+1. Gateway trace events cover the exact BYOK path: requested/actual model, namespace routing, image fallback, Responses or Chat transport, translated payload previews, upstream HTTP status, first-byte latency, SSE event counts, visible reasoning, tool names and arguments, tool results, usage, and failures.
 2. Codex OpenTelemetry covers the desktop runtime: conversation/API/SSE lifecycle, tool decisions, tool results, durations, and success status. The generated user-level `config.toml` exports logs and spans as OTLP/JSON to Launcher's authenticated loopback collector. `log_user_prompt` is disabled.
 
 ### How to view a trace
@@ -136,7 +138,7 @@ Launcher combines two observability sources:
 1. Start Codex Launcher and click **Save & Launch Codex**.
 2. Send a message in the isolated Codex Desktop app.
 3. Open Launcher from the menu-bar icon and choose **Open Traces**, or open the Launcher window and select **Traces** in the sidebar.
-4. Click a trace row to expand its ordered event timeline. Use **Refresh** after a turn is complete. **Clear** removes only local trace history.
+4. Click a trace row to expand its ordered event timeline. Events named **Visible reasoning**, **Tool call / Tool input**, and **Tool output** contain the provider-returned reasoning and the sanitized tool arguments/results. Gateway request traces are listed ahead of standalone Codex telemetry so high-volume OTel events cannot hide them. Use **Refresh** after a turn is complete. **Clear** removes only local trace history.
 
 Trace records are stored at `~/.codex-launcher/traces.jsonl` with file mode `0600`. The append-only file is compacted automatically at 20 MiB. API keys, authorization fields, passwords, cookies, and inline image bytes are redacted; long strings are truncated. Payloads never leave the machine unless the selected upstream request itself requires them.
 

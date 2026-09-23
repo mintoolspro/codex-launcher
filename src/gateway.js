@@ -180,6 +180,7 @@ class Gateway {
     const trace = this.traceStore.start({ traceId: traceIdFromHeader(req.headers.traceparent), requestedModel, stream: Boolean(body.stream), hasImages: hasImageInput(body) });
     res.setHeader('x-codex-launcher-trace-id', trace.traceId);
     this.traceStore.event(trace, 'request.received', { payload: { model: requestedModel, stream: Boolean(body.stream), input: body.input, instructions: body.instructions, tools: body.tools } });
+    this.#traceInput(trace, body.input);
     try {
       const { providerId, upstreamModel } = splitModel(requestedModel);
       const config = this.configStore.read();
@@ -348,6 +349,13 @@ class Gateway {
       if (item?.type === 'function_call' || item?.type === 'custom_tool_call') this.traceStore.event(trace, 'tool.call', { callId: item.call_id, tool: item.name, arguments: item.arguments ?? item.input });
       else if (item?.type === 'reasoning') this.traceStore.event(trace, 'reasoning.output', { payload: item });
       else if (item?.type === 'message') this.traceStore.event(trace, 'model.output', { payload: item.content });
+    }
+  }
+  #traceInput(trace, input = []) {
+    for (const item of Array.isArray(input) ? input : []) {
+      if (item?.type === 'function_call' || item?.type === 'custom_tool_call') this.traceStore.event(trace, 'tool.call.input', { callId: item.call_id, tool: item.name, arguments: item.arguments ?? item.input });
+      else if (item?.type === 'function_call_output' || item?.type === 'custom_tool_call_output') this.traceStore.event(trace, 'tool.call.output', { callId: item.call_id, output: item.output });
+      else if (item?.type === 'reasoning') this.traceStore.event(trace, 'reasoning.input', { payload: item });
     }
   }
   async #upstreamFailure(response, label) {

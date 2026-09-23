@@ -117,7 +117,11 @@ class TraceStore {
       else if (row.kind === 'turn.started' && group.status !== 'error') group.status = 'running';
       else if (row.kind === 'turn.completed' && group.status !== 'error') group.status = 'completed';
     }
-    return [...groups.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt)).slice(0, Math.min(200, Math.max(1, limit)));
+    const count = Math.min(200, Math.max(1, limit));
+    const ordered = [...groups.values()].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    const gateway = ordered.filter((group) => group.events.some((event) => event.source === 'gateway'));
+    const telemetry = ordered.filter((group) => !group.events.some((event) => event.source === 'gateway'));
+    return [...gateway.slice(0, count), ...telemetry.slice(0, Math.max(0, count - gateway.length))];
   }
   reset() { try { fs.unlinkSync(this.file); } catch (error) { if (error.code !== 'ENOENT') throw error; } }
   #read() {

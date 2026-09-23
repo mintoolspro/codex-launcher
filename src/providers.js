@@ -29,6 +29,64 @@ const REASONING_DESCRIPTIONS = Object.freeze({
   max: 'Maximum reasoning'
 });
 
+const DEEPSEEK_PRICING_SOURCE = 'https://api-docs.deepseek.com/quick_start/pricing/';
+const DEEPSEEK_PRICING = Object.freeze({
+  'deepseek-flash': deepseekPricing(0.15, 0.30, 0.60, 1.20, 0.003, 0.006),
+  'deepseek-v4-flash': deepseekPricing(0.15, 0.30, 0.60, 1.20, 0.003, 0.006),
+  'deepseek-v4-flash-vision-exp': deepseekPricing(0.15, 0.30, 0.60, 1.20, 0.003, 0.006),
+  'deepseek-v4-pro': deepseekPricing(0.66, 1.32, 1.98, 3.96, 0.022, 0.044)
+});
+
+function band(min, max = min) { return { min: Number(min), max: Number(max) }; }
+
+function deepseekPricing(inputOffPeak, inputPeak, outputOffPeak, outputPeak, cacheOffPeak, cachePeak) {
+  return {
+    currency: 'USD', unit: 'million_tokens',
+    input: band(inputOffPeak, inputPeak), output: band(outputOffPeak, outputPeak), cacheRead: band(cacheOffPeak, cachePeak),
+    schedule: 'deepseek_weekday_utc', source: DEEPSEEK_PRICING_SOURCE
+  };
+}
+
+function perTokenBand(value) {
+  const price = Number(value);
+  return Number.isFinite(price) && price >= 0 ? band(price * 1_000_000) : null;
+}
+
+function normalizePricing(value, fallback = null) {
+  if (!value || typeof value !== 'object') return fallback;
+  const input = perTokenBand(value.prompt ?? value.input);
+  const output = perTokenBand(value.completion ?? value.output);
+  if (!input && !output) return fallback;
+  return {
+    currency: 'USD', unit: 'million_tokens', input, output,
+    cacheRead: perTokenBand(value.input_cache_read ?? value.cache_read),
+    cacheWrite: perTokenBand(value.input_cache_write ?? value.cache_write),
+    source: 'provider_models_api'
+  };
+}
+
+function pricingRates(pricing, at = new Date()) {
+  if (!pricing) return null;
+  let side = 'max';
+  if (pricing.schedule === 'deepseek_weekday_utc') {
+    const date = at instanceof Date ? at : new Date(at);
+    const day = date.getUTCDay(), hour = date.getUTCHours();
+    const peak = day >= 1 && day <= 5 && ((hour >= 1 && hour < 4) || (hour >= 6 && hour < 10));
+    side = peak ? 'max' : 'min';
+  }
+  const pick = (entry) => entry ? Number(entry[side] ?? entry.max ?? entry.min ?? 0) : 0;
+  return { input: pick(pricing.input), output: pick(pricing.output), cacheRead: pick(pricing.cacheRead), cacheWrite: pick(pricing.cacheWrite) };
+}
+
+function modelPricing(config = {}, qualifiedModel = '') {
+  const slash = qualifiedModel.indexOf('/');
+  if (slash <= 0) return null;
+  const providerId = qualifiedModel.slice(0, slash), id = qualifiedModel.slice(slash + 1);
+  const model = (config.selectedModels || []).find((entry) => entry.providerId === providerId && entry.id === id)
+    || config.modelCache?.[providerId]?.models?.find((entry) => entry.id === id);
+  return model?.pricing || providerModelProfile(providerId, id).pricing || null;
+}
+
 function providerDefinitions(config = {}) {
   return Object.values(PRESETS).map((preset) => ({
     ...preset,
@@ -62,17 +120,20 @@ function normalizeModels(payload, providerId = '') {
       supportsReasoning: profile.supportsReasoning ?? parameters.some((item) => item === 'reasoning' || item === 'include_reasoning'),
       reasoningLevels: profile.reasoningLevels || reasoningLevelsFor(providerId, parameters),
       defaultReasoningLevel: profile.defaultReasoningLevel || defaultReasoningLevel(providerId, parameters),
-      supportedParameters: parameters
+      supportedParameters: parameters,
+      pricing: normalizePricing(row.pricing, profile.pricing)
     };
   }).filter(Boolean);
 }
 
 function providerModelProfile(providerId, modelId) {
   if (providerId !== 'deepseek') return {};
+  const pricing = DEEPSEEK_PRICING[modelId] || null;
   if (modelId === 'deepseek-flash' || modelId === 'deepseek-v4-pro' || modelId === 'deepseek-v4-flash-vision-exp') {
-    return { inputModalities: ['text', 'image'], supportsTools: true, supportsReasoning: true, reasoningLevels: ['low', 'high', 'max'], defaultReasoningLevel: 'high' };
+    const inputModalities = modelId === 'deepseek-v4-pro' ? ['text'] : ['text', 'image'];
+    return { inputModalities, supportsTools: true, supportsReasoning: true, reasoningLevels: ['low', 'high', 'max'], defaultReasoningLevel: 'high', pricing };
   }
-  return { supportsTools: true, supportsReasoning: true, reasoningLevels: ['low', 'high', 'max'], defaultReasoningLevel: 'high' };
+  return { supportsTools: true, supportsReasoning: true, reasoningLevels: ['low', 'high', 'max'], defaultReasoningLevel: 'high', pricing };
 }
 
 function reasoningLevelsFor(providerId, supportedParameters = []) {
@@ -128,4 +189,4 @@ async function fetchModels(provider, apiKey, { signal } = {}) {
   return normalizeModels(payload, provider.id);
 }
 
-module.exports = { PRESETS, REASONING_DESCRIPTIONS, providerDefinitions, providerModelProfile, reasoningLevelsFor, defaultReasoningLevel, reasoningLevelEntries, mapReasoningEffort, normalizeBaseUrl, normalizeInputModalities, normalizeOutputModalities, normalizeModels, fetchModels };
+module.exports = { PRESETS, REASONING_DESCRIPTIONS, DEEPSEEK_PRICING, providerDefinitions, providerModelProfile, reasoningLevelsFor, defaultReasoningLevel, reasoningLevelEntries, mapReasoningEffort, normalizeBaseUrl, normalizeInputModalities, normalizeOutputModalities, normalizePricing, pricingRates, modelPricing, normalizeModels, fetchModels };

@@ -42,3 +42,13 @@ test('sanitize limits payload depth and long strings', () => {
   assert.equal(sanitize({ tool_token_count: 12 }).tool_token_count, 12);
   assert.match(sanitize('x'.repeat(3000)), /omitted/);
 });
+
+test('gateway request traces are not displaced by noisy standalone telemetry', () => {
+  const paths = getPaths(fs.mkdtempSync(path.join(os.tmpdir(), 'codex-launcher-trace-priority-')));
+  const store = new TraceStore(paths);
+  const trace = store.start({ requestedModel: 'openrouter/model' });
+  store.finish(trace, { status: 'ok' });
+  for (let index = 0; index < 5; index++) store.record({ source: 'codex', kind: 'codex.event', traceId: `otel-${index}` });
+  const [first] = store.query({ limit: 1 });
+  assert.equal(first.traceId, trace.traceId);
+});
