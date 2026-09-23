@@ -14,7 +14,8 @@
     "test": "node --test test/*.mjs",
     "check": "find src electron bin test -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
     "icon": "bash scripts/build-icon.sh",
-    "pack": "npm run icon && electron-builder --mac dir zip"
+    "pack": "npm run icon && electron-builder --mac dir zip",
+    "release": "node scripts/publish-release.mjs"
   },
   "devDependencies": {
     "electron": "^42.3.0",
