@@ -177,6 +177,15 @@ hdiutil create -volname "Codex Launcher" -srcfolder "dist/mac-arm64/Codex Launch
 
 Unsigned local builds may require Control-click → Open on first launch. Distribution to other users should use an Apple Developer ID signature and notarization.
 
+Release builds receive a complete ad-hoc signature and are verified before the ZIP is created. Because the project is not yet signed and notarized with an Apple Developer ID, macOS may still quarantine a build downloaded by a browser. If Control-click → Open is unavailable or macOS reports that the app is damaged, move the app to `/Applications` and run:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Codex Launcher.app"
+open "/Applications/Codex Launcher.app"
+```
+
+Only run that command for an archive downloaded from this repository after checking its published SHA-256 digest.
+
 ## Project layout
 
 - `electron/main.js`: menu bar, window, and application lifecycle

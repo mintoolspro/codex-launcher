@@ -1,6 +1,6 @@
 {
   "name": "codex-launcher",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Run an isolated Codex Desktop instance with BYOK model providers.",
   "author": "mintoolspro",
   "license": "MIT",
@@ -12,7 +12,7 @@
     "start": "electron .",
     "cli": "node bin/codex-launcher.mjs",
     "test": "node --test test/*.mjs",
-    "check": "find src electron bin test -type f \\( -name '*.js' -o -name '*.mjs' \\) -print0 | xargs -0 -n1 node --check",
+    "check": "find src electron bin test scripts -type f \\( -name '*.js' -o -name '*.mjs' -o -name '*.cjs' \\) -print0 | xargs -0 -n1 node --check",
     "icon": "bash scripts/build-icon.sh",
     "pack": "npm run icon && electron-builder --mac dir zip",
     "release": "node scripts/publish-release.mjs"
@@ -24,6 +24,7 @@
   "build": {
     "appId": "pro.mintools.codex-launcher",
     "productName": "Codex Launcher",
+    "afterPack": "scripts/after-pack.cjs",
     "asar": true,
     "files": [
       "bin/**/*",
@@ -36,7 +37,10 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "assets/icon.icns",
-      "target": ["dir", "zip"],
+      "target": [
+        "dir",
+        "zip"
+      ],
       "identity": null,
       "extendInfo": {
         "LSUIElement": true
