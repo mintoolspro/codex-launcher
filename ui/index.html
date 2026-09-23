@@ -2,72 +2,315 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:">
   <title>Codex Launcher</title>
+  <script>
+    (function () {
+      try {
+        var mode = localStorage.getItem('launcher-appearance') || 'auto';
+        var dark = mode === 'dark' || (mode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.appearance = dark ? 'dark' : 'light';
+      } catch (error) {
+        document.documentElement.dataset.appearance = 'light';
+      }
+    })();
+  </script>
   <style>
-    :root { color-scheme: dark; --bg:#070b17; --panel:#0e1528; --panel2:#111b32; --line:#263451; --text:#f2f6ff; --muted:#94a3bd; --cyan:#43d7ff; --mint:#66f0c2; --violet:#9a7cff; --danger:#ff6b7a; }
-    * { box-sizing:border-box } body { margin:0; background:radial-gradient(circle at 15% 0,#13244c 0,transparent 35%),var(--bg); color:var(--text); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
-    button,input,select { font:inherit } button { cursor:pointer } .shell { display:grid; grid-template-columns:230px 1fr; min-height:100vh }
-    aside { border-right:1px solid var(--line); padding:28px 18px; background:rgba(7,11,23,.8); backdrop-filter:blur(18px); }
-    .brand { display:flex; align-items:center; gap:12px; font-weight:700; font-size:17px; margin:0 8px 20px } .brand img { width:38px;height:38px;border-radius:10px }
-    .language { margin:0 8px 22px }.language select { margin:0;padding:7px 9px }
-    nav button { display:block;width:100%;border:0;background:transparent;color:var(--muted);padding:11px 12px;text-align:left;border-radius:9px;margin:4px 0 }
-    nav button.active,nav button:hover { color:var(--text);background:#17233e }
-    .side-status { position:fixed;left:26px;bottom:24px;color:var(--muted);font-size:12px }.dot { display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--mint);margin-right:7px;box-shadow:0 0 12px var(--mint) }
-    main { padding:34px 42px 60px; max-width:1240px;width:100% } h1 { font-size:28px;margin:0 0 6px } h2 { font-size:17px;margin:0 } p.lead { color:var(--muted);margin:0 0 28px }
-    .grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px }.card { background:linear-gradient(145deg,rgba(17,27,50,.94),rgba(11,18,34,.94));border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 18px 45px rgba(0,0,0,.18) }
-    .provider-head,.row,.toolbar { display:flex;align-items:center;justify-content:space-between;gap:12px }.provider-name { font-weight:650;font-size:16px }.pill { color:var(--mint);font-size:11px;background:#12332f;padding:4px 8px;border-radius:99px }
-    label { display:block;color:var(--muted);font-size:12px;margin-top:14px } input[type=text],input[type=password],input[type=search],select { width:100%;background:#091022;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;margin-top:5px;outline:none } input:focus,select:focus { border-color:var(--cyan) }
-    .actions { display:flex;gap:8px;margin-top:14px }.btn { border:1px solid var(--line);background:#17233e;color:var(--text);padding:8px 12px;border-radius:8px }.btn.primary { border:0;background:linear-gradient(100deg,#1c9fd2,#3ac9a3);color:#03131b;font-weight:700 }.btn.danger { color:#ff9aa4 }.btn:disabled { opacity:.45;cursor:not-allowed }
-    .models { margin-top:18px }.model-list { border:1px solid var(--line);border-radius:10px;max-height:310px;overflow:auto;margin-top:10px }.model { display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:10px 12px;border-bottom:1px solid #1d2943;margin:0;color:var(--text);font-size:14px }.model:last-child { border:0 }.model small { display:block;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:460px }.model-side{display:flex;align-items:center;gap:8px}.model-side select{width:auto;min-width:96px;margin:0;padding:5px 7px;font-size:11px}.context { color:var(--muted);font-size:11px;white-space:nowrap }
-    .launchbar { position:sticky;bottom:18px;margin-top:22px;background:rgba(15,23,42,.94);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:18px;backdrop-filter:blur(16px) }.fallback { min-width:290px;flex:1;max-width:440px }.fallback label { margin:0 }.fallback small { display:block;color:var(--muted);margin-top:4px }
-    .hidden { display:none!important }.notice { padding:10px 12px;border-radius:8px;background:#17233e;color:var(--muted);margin:12px 0 }.notice.error { color:#ffc2c8;border:1px solid #743342 }.metrics { display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px }.metric strong { display:block;font-size:24px;margin-top:5px }.metric span { color:var(--muted);font-size:12px }
-    table { width:100%;border-collapse:collapse } th,td { padding:11px 9px;text-align:left;border-bottom:1px solid var(--line) } th { color:var(--muted);font-size:11px;font-weight:500 } .bar { width:100px;height:5px;background:#202c45;border-radius:9px;overflow:hidden }.bar i { display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--mint)) }
-    .chart { height:210px;display:flex;align-items:flex-end;gap:8px;padding:20px 6px 0 }.column { flex:1;min-width:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px }.column i { width:100%;max-width:34px;min-height:2px;background:linear-gradient(180deg,var(--cyan),var(--violet));border-radius:5px 5px 2px 2px }.column small { color:var(--muted);font-size:9px;transform:rotate(-35deg);height:20px }
-    .trace-list { display:grid;gap:12px }.trace { padding:0;overflow:hidden }.trace summary { list-style:none;cursor:pointer;padding:16px 18px;display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:16px;align-items:center }.trace summary::-webkit-details-marker{display:none}.trace-title strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.trace-title small,.trace-meta{color:var(--muted);font-size:11px}.status{font-size:11px;padding:4px 8px;border-radius:99px;background:#1b2b46;color:var(--cyan)}.status.error{background:#4a2028;color:#ffb4bd}.status.completed{background:#12332f;color:var(--mint)}.timeline{border-top:1px solid var(--line);padding:8px 18px 16px}.trace-event{position:relative;margin-left:7px;padding:10px 8px 10px 22px;border-left:1px solid #31415f}.trace-event:before{content:"";position:absolute;left:-5px;top:15px;width:9px;height:9px;border-radius:50%;background:var(--cyan)}.trace-event code{color:#c7d7ff}.trace-event pre{white-space:pre-wrap;word-break:break-word;max-height:240px;overflow:auto;background:#080e1d;padding:9px;border-radius:7px;color:#b8c6df;font-size:11px}.empty{color:var(--muted);text-align:center;padding:30px}
-    @media(max-width:900px){.shell{grid-template-columns:180px 1fr}.grid{grid-template-columns:1fr}main{padding:28px 24px}.metrics{grid-template-columns:repeat(2,1fr)}}
+    :root {
+      --font-text: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --radius-card: 18px; --radius-panel: 14px; --radius-control: 10px; --radius-pill: 999px;
+      --bg: #f5f5f7; --surface: #ffffff; --surface-2: rgba(120,120,128,.10); --control-hover: rgba(120,120,128,.18);
+      --sidebar: rgba(255,255,255,.72); --sidebar-border: rgba(0,0,0,.09); --surface-blur: rgba(255,255,255,.86);
+      --text: #1d1d1f; --muted: #6e6e73; --hairline: rgba(0,0,0,.09); --hairline-strong: rgba(0,0,0,.16);
+      --accent: #0071e3; --accent-hover: #0077ed; --accent-2: #64d2ff; --accent-soft: rgba(0,113,227,.12); --on-accent: #ffffff;
+      --success: #1d8f4f; --success-soft: rgba(29,143,79,.12);
+      --warn: #a35200; --warn-soft: rgba(255,149,0,.16);
+      --danger: #d70015; --danger-soft: rgba(215,0,21,.10);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.06); --shadow-md: 0 10px 30px rgba(0,0,0,.10);
+    }
+    :root[data-appearance="dark"] {
+      --bg: #1c1c1e; --surface: #2c2c2e; --surface-2: rgba(120,120,128,.20); --control-hover: rgba(120,120,128,.32);
+      --sidebar: rgba(28,28,30,.74); --sidebar-border: rgba(255,255,255,.10); --surface-blur: rgba(44,44,46,.88);
+      --text: #f5f5f7; --muted: #98989d; --hairline: rgba(255,255,255,.12); --hairline-strong: rgba(255,255,255,.22);
+      --accent: #0a84ff; --accent-hover: #2b95ff; --accent-2: #5ac8fa; --accent-soft: rgba(10,132,255,.20); --on-accent: #ffffff;
+      --success: #30d158; --success-soft: rgba(48,209,88,.18);
+      --warn: #ff9f0a; --warn-soft: rgba(255,159,10,.18);
+      --danger: #ff453a; --danger-soft: rgba(255,69,58,.18);
+      --shadow-sm: 0 1px 2px rgba(0,0,0,.35); --shadow-md: 0 14px 34px rgba(0,0,0,.45);
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: light; }
+    html[data-appearance="dark"] { color-scheme: dark; }
+    body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); font: 14px/1.47 var(--font-text); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+    ::selection { background: var(--accent-soft); }
+    button, input, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    h1, h2, strong { font-weight: 650; }
+
+    .shell { display: grid; grid-template-columns: 252px minmax(0, 1fr); min-height: 100vh; }
+
+    /* Sidebar */
+    aside { display: flex; flex-direction: column; gap: 18px; padding: 20px 14px; background: var(--sidebar); border-right: 1px solid var(--sidebar-border); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 0 6px; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
+    .brand img { flex: 0 0 auto; width: 30px; height: 30px; border-radius: 8px; box-shadow: var(--shadow-sm); }
+    .brand span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .navrow { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+    nav { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    nav button { width: 100%; padding: 8px 10px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 13.5px; font-weight: 500; text-align: left; transition: background .15s ease, color .15s ease; }
+    nav button:hover { background: var(--surface-2); color: var(--text); }
+    nav button.active { background: var(--accent); color: var(--on-accent); }
+    .navrow-extra { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    .language select { width: 100%; }
+    .appearance { display: grid; grid-auto-flow: column; gap: 2px; padding: 2px; border-radius: 9px; background: var(--surface-2); }
+    .appearance button { min-width: 0; padding: 5px 6px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); font-size: 11.5px; font-weight: 600; transition: background .15s ease, color .15s ease; }
+    .appearance button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+    .side-status { display: flex; align-items: center; gap: 7px; min-width: 0; margin-top: auto; padding: 0 6px; color: var(--muted); font-size: 11.5px; }
+    .side-status span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+
+    /* Content */
+    main { min-width: 0; width: 100%; max-width: 1240px; padding: 34px clamp(20px, 3.4vw, 44px) 96px; }
+    h1 { margin: 0 0 6px; font-size: clamp(23px, 3.2vw, 31px); letter-spacing: -.022em; }
+    h2 { margin: 0 0 12px; font-size: 16px; letter-spacing: -.01em; }
+    p.lead { max-width: 72ch; margin: 0 0 26px; color: var(--muted); font-size: 13.5px; }
+    .toolbar { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .toolbar-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(330px, 100%), 1fr)); gap: 16px; }
+    .card { min-width: 0; padding: 18px; border: 1px solid var(--hairline); border-radius: var(--radius-card); background: var(--surface); box-shadow: var(--shadow-sm); }
+    .stack { display: grid; gap: 16px; }
+
+    label { display: block; margin-top: 14px; color: var(--muted); font-size: 12px; font-weight: 500; }
+    input:not([type=checkbox]):not([type=radio]), select, textarea { width: 100%; margin-top: 6px; padding: 9px 11px; border: 1px solid var(--hairline-strong); border-radius: var(--radius-control); background-color: var(--surface); color: var(--text); outline: none; transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease; }
+    select { -webkit-appearance: none; appearance: none; padding-right: 30px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.7 6 6.4l5-4.7' fill='none' stroke='%238e8e93' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; background-size: 11px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3.5px var(--accent-soft); }
+    input[type=checkbox] { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+    input[type=search] { -webkit-appearance: none; appearance: none; }
+    ::placeholder { color: var(--muted); opacity: .8; }
+
+    .btn { padding: 8px 14px; border: 1px solid transparent; border-radius: var(--radius-control); background-color: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 550; transition: background-color .15s ease, transform .06s ease, box-shadow .15s ease; }
+    .btn:hover { background-color: var(--control-hover); }
+    .btn:active { transform: scale(.985); }
+    .btn.primary { background-color: var(--accent); color: var(--on-accent); }
+    .btn.primary:hover { background-color: var(--accent-hover); }
+    .btn.danger { background-color: var(--danger-soft); color: var(--danger); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn:focus-visible, nav button:focus-visible, .appearance button:focus-visible { outline: none; box-shadow: 0 0 0 3.5px var(--accent-soft); }
+    select.btn { width: auto; padding-top: 7px; padding-bottom: 7px; }
+
+    .provider-head, .row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+    .provider-name { font-size: 15.5px; font-weight: 600; letter-spacing: -.01em; }
+    .pill { padding: 3px 9px; border-radius: var(--radius-pill); background: var(--success-soft); color: var(--success); font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .pill.warn { background: var(--warn-soft); color: var(--warn); }
+    .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+
+    .models { margin-top: 18px; }
+    .model-list { max-height: 320px; overflow: auto; margin-top: 10px; border: 1px solid var(--hairline); border-radius: var(--radius-panel); background: var(--surface); }
+    .model { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; margin: 0; padding: 9px 12px; border-bottom: 1px solid var(--hairline); color: var(--text); font-size: 13.5px; }
+    .model:last-child { border-bottom: 0; }
+    .model:hover { background: var(--surface-2); }
+    .model strong { display: block; font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .model small { display: block; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .model-side { display: flex; align-items: center; gap: 8px; }
+    .model-side select { width: auto; min-width: 92px; margin: 0; padding: 4px 24px 4px 8px; background-position: right 7px center; font-size: 11px; }
+    .context { color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+    .launchbar { position: sticky; bottom: 16px; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 24px; padding: 14px 16px; border: 1px solid var(--hairline); border-radius: var(--radius-card); background: var(--surface-blur); box-shadow: var(--shadow-md); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+    .launch-summary { min-width: 0; }
+    .launch-summary strong { display: block; }
+    .launch-note { color: var(--muted); font-size: 12px; }
+    .launchbar .actions { margin: 0; flex: 0 0 auto; }
+    .fallback { flex: 1 1 auto; min-width: 240px; max-width: 440px; }
+    .fallback label { margin: 0; }
+    .fallback small { display: block; margin-top: 5px; color: var(--muted); font-size: 11px; }
+
+    .hidden { display: none !important; }
+    .notice { margin: 12px 0; padding: 10px 12px; border-radius: var(--radius-panel); background: var(--surface-2); color: var(--muted); font-size: 13px; }
+    .notice.error { background: var(--danger-soft); color: var(--danger); }
+    .notice:empty { display: none; }
+    .empty { padding: 30px; color: var(--muted); text-align: center; }
+
+    .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 12px; margin-bottom: 16px; }
+    .metric span { color: var(--muted); font-size: 11.5px; font-weight: 500; }
+    .metric strong { display: block; margin-top: 4px; font-size: 23px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+
+    .table-wrap { overflow: auto; -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    th, td { padding: 11px 10px; border-bottom: 1px solid var(--hairline); text-align: left; font-size: 13px; }
+    tbody tr:last-child td { border-bottom: 0; }
+    th { color: var(--muted); font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .bar { width: min(100px, 100%); height: 5px; border-radius: var(--radius-pill); background: var(--surface-2); overflow: hidden; }
+    .bar i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--accent); }
+
+    .chart-wrap { overflow-x: auto; }
+    .chart { display: flex; align-items: flex-end; gap: 6px; height: 210px; padding: 16px 4px 0; }
+    .column { flex: 1; min-width: 6px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 6px; }
+    .column i { width: 100%; max-width: 34px; min-height: 2px; border-radius: 5px 5px 2px 2px; background: linear-gradient(180deg, var(--accent), var(--accent-2)); }
+    .column small { height: 20px; color: var(--muted); font-size: 9px; white-space: nowrap; transform: rotate(-45deg); }
+
+    .tokens td:last-child, .tokens th:last-child { white-space: nowrap; }
+
+    .trace-list { display: grid; gap: 12px; }
+    .trace { padding: 0; overflow: hidden; }
+    .trace summary { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 16px; align-items: center; padding: 14px 18px; list-style: none; cursor: pointer; }
+    .trace summary::-webkit-details-marker { display: none; }
+    .trace-title { min-width: 0; }
+    .trace-title strong, .trace-title small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .trace-title small, .trace-meta { color: var(--muted); font-size: 11px; }
+    .status { padding: 3px 9px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .status.error { background: var(--danger-soft); color: var(--danger); }
+    .status.completed { background: var(--success-soft); color: var(--success); }
+    .timeline { padding: 10px 18px 16px; border-top: 1px solid var(--hairline); }
+    .trace-event { position: relative; margin-left: 6px; padding: 10px 6px 10px 20px; border-left: 1px solid var(--hairline-strong); }
+    .trace-event::before { content: ""; position: absolute; left: -5px; top: 15px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+    .trace-event code { padding: 2px 6px; border-radius: 6px; background: var(--surface-2); font: 11.5px var(--font-mono); color: var(--text); }
+    .trace-event pre { max-height: 240px; overflow: auto; margin: 8px 0 0; padding: 10px; border: 1px solid var(--hairline); border-radius: var(--radius-control); background: var(--surface-2); color: var(--muted); font: 11px/1.5 var(--font-mono); white-space: pre-wrap; word-break: break-word; }
+
+    /* The launch bar needs room for three groups; stack it before the sidebar collapses */
+    @media (max-width: 1080px) {
+      .launchbar { position: static; flex-direction: column; align-items: stretch; gap: 14px; }
+      .fallback { width: 100%; min-width: 0; max-width: none; }
+      .launchbar .actions { justify-content: flex-end; }
+    }
+
+    /* Compact layout: the sidebar becomes a sticky top bar */
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: minmax(0, 1fr); }
+      aside { position: sticky; top: 0; z-index: 20; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand status" "navrow navrow"; gap: 10px 12px; padding: 11px 14px; border-right: 0; border-bottom: 1px solid var(--sidebar-border); }
+      .brand { grid-area: brand; }
+      .side-status { grid-area: status; justify-content: flex-end; max-width: 46vw; margin: 0; padding: 0; }
+      .navrow { grid-area: navrow; flex-direction: row; align-items: center; gap: 10px; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 18px), rgba(0,0,0,.3) 100%); mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - 18px), rgba(0,0,0,.3) 100%); }
+      .navrow::-webkit-scrollbar { display: none; }
+      nav { flex: 0 0 auto; flex-direction: row; gap: 4px; }
+      nav button { width: auto; padding: 7px 12px; font-size: 13px; white-space: nowrap; }
+      .navrow-extra { flex: 0 0 auto; flex-direction: row; align-items: center; gap: 10px; padding-left: 10px; border-left: 1px solid var(--hairline); }
+      .language select { width: auto; min-width: 0; margin: 0; padding: 5px 26px 5px 9px; background-position: right 8px center; font-size: 12px; }
+      .appearance button { padding: 4px 8px; font-size: 11px; white-space: nowrap; }
+      main { padding: 20px 16px 64px; }
+      p.lead { margin-bottom: 20px; }
+    }
+
+    @media (max-width: 640px) {
+      .grid { grid-template-columns: minmax(0, 1fr); }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { padding: 15px; }
+      .chart { height: 180px; min-width: 440px; }
+      .tokens { min-width: 620px; }
+      .tokens th:first-child, .tokens td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); box-shadow: 1px 0 0 var(--hairline); }
+      .trace summary { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "title status" "meta meta"; }
+      .trace-title { grid-area: title; }
+      .trace-meta { grid-area: meta; }
+      .trace summary .status { grid-area: status; }
+      .timeline { padding: 10px 12px 14px; }
+    }
+
+    @media (max-width: 420px) {
+      .context { display: none; }
+      .model-side select { min-width: 78px; }
+      .launchbar .actions .btn { flex: 1 1 auto; }
+      .trace summary { padding: 12px 14px; }
+    }
+
+    @media (max-width: 380px) {
+      .metrics { grid-template-columns: minmax(0, 1fr); }
+      .side-status { max-width: 38vw; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
   </style>
 </head>
 <body>
 <div class="shell">
-  <aside><div class="brand"><img src="/icon.png" onerror="this.style.display='none'">Codex Launcher</div><div class="language"><select id="language"><option value="auto">System language</option><option value="zh">中文</option><option value="en">English</option></select></div><nav><button data-page="settings" data-i18n="providers">Providers</button><button data-page="overview" data-i18n="overview">Overview</button><button data-page="traces" data-i18n="traces">Traces</button></nav><div class="side-status"><span class="dot"></span><span id="gatewayState">Starting gateway…</span></div></aside>
+  <aside>
+    <div class="brand"><img src="/icon.png" alt="" onerror="this.style.display='none'"><span>Codex Launcher</span></div>
+    <div class="navrow">
+      <nav>
+        <button data-page="settings" data-i18n="providers">Providers</button>
+        <button data-page="overview" data-i18n="overview">Overview</button>
+        <button data-page="traces" data-i18n="traces">Traces</button>
+      </nav>
+      <div class="navrow-extra">
+        <div class="language"><select id="language" aria-label="Language"><option value="auto">System language</option><option value="zh">中文</option><option value="en">English</option></select></div>
+        <div class="appearance" role="group" aria-label="Appearance">
+          <button type="button" data-mode="auto" data-i18n="appearanceAuto">Auto</button>
+          <button type="button" data-mode="light" data-i18n="appearanceLight">Light</button>
+          <button type="button" data-mode="dark" data-i18n="appearanceDark">Dark</button>
+        </div>
+      </div>
+    </div>
+    <div class="side-status"><span class="dot"></span><span id="gatewayState">Starting gateway…</span></div>
+  </aside>
   <main>
-    <section id="settingsPage"><h1 data-i18n="chooseModels">Choose your models</h1><p class="lead" data-i18n="chooseLead">Connect a provider, search its live catalog, then select exactly what Codex Desktop should show.</p><div id="message"></div><div id="providers" class="grid"></div><div class="launchbar"><div><strong id="selectionCount">0 models selected</strong><div style="color:var(--muted);font-size:12px" id="runState">Codex is stopped</div></div><div class="fallback"><label><span data-i18n="visionFallback">Vision fallback</span><select id="visionFallback"></select></label><small data-i18n="visionHelp">Images sent to text-only models are described here first, then returned to the selected model.</small></div><div class="actions" style="margin:0"><button class="btn danger hidden" id="stopButton" data-i18n="stopCodex">Stop Codex</button><button class="btn primary" id="launchButton">Save &amp; Launch Codex</button></div></div></section>
-    <section id="overviewPage" class="hidden"><div class="toolbar"><div><h1 data-i18n="tokenOverview">Token overview</h1><p class="lead" data-i18n="usageLead">Usage observed by the local gateway.</p></div><div><select id="days" class="btn"><option>7</option><option>14</option><option>30</option></select> <button class="btn danger" id="resetUsage" data-i18n="reset">Reset</button></div></div><div id="metrics" class="metrics"></div><div class="card" style="margin-bottom:16px"><h2 data-i18n="dailyTokens">Daily tokens</h2><div id="chart" class="chart"></div></div><div class="card"><h2 data-i18n="models">Models</h2><div style="overflow:auto"><table><thead><tr><th data-i18n="model">Model</th><th data-i18n="share">Share</th><th data-i18n="total">Total</th><th data-i18n="input">Input</th><th data-i18n="output">Output</th><th data-i18n="requests">Requests</th><th data-i18n="lastUsed">Last used</th></tr></thead><tbody id="usageRows"></tbody></table></div></div></section>
-    <section id="tracesPage" class="hidden"><div class="toolbar"><div><h1 data-i18n="requestTraces">Request traces</h1><p class="lead" data-i18n="traceLead">Gateway routing, protocol translation, upstream timing, model output and Codex OTel events.</p></div><div><button class="btn" id="refreshTraces" data-i18n="refresh">Refresh</button> <button class="btn danger" id="resetTraces" data-i18n="clear">Clear</button></div></div><div class="notice" data-i18n="traceNotice">Payloads are stored locally with secrets and inline image data redacted. The newest 50 traces are shown.</div><div id="traceList" class="trace-list"></div></section>
+    <section id="settingsPage">
+      <h1 data-i18n="chooseModels">Choose your models</h1>
+      <p class="lead" data-i18n="chooseLead">Connect a provider, search its live catalog, then select exactly what Codex Desktop should show.</p>
+      <div id="message"></div>
+      <div id="providers" class="grid"></div>
+      <div class="launchbar">
+        <div class="launch-summary"><strong id="selectionCount">0 models selected</strong><div class="launch-note" id="runState">Codex is stopped</div></div>
+        <div class="fallback"><label><span data-i18n="visionFallback">Vision fallback</span><select id="visionFallback"></select></label><small data-i18n="visionHelp">Images sent to text-only models are described here first, then returned to the selected model.</small></div>
+        <div class="actions"><button class="btn danger hidden" id="stopButton" data-i18n="stopCodex">Stop Codex</button><button class="btn primary" id="launchButton">Save &amp; Launch Codex</button></div>
+      </div>
+    </section>
+    <section id="overviewPage" class="hidden">
+      <div class="toolbar"><div><h1 data-i18n="tokenOverview">Token overview</h1><p class="lead" data-i18n="usageLead">Usage observed by the local gateway.</p></div><div class="toolbar-actions"><select id="days" class="btn" aria-label="Days"><option>7</option><option>14</option><option>30</option></select><button class="btn danger" id="resetUsage" data-i18n="reset">Reset</button></div></div>
+      <div id="metrics" class="metrics"></div>
+      <div class="stack">
+        <div class="card"><h2 data-i18n="dailyTokens">Daily tokens</h2><div class="chart-wrap"><div id="chart" class="chart"></div></div></div>
+        <div class="card"><h2 data-i18n="models">Models</h2><div class="table-wrap"><table class="tokens"><thead><tr><th data-i18n="model">Model</th><th data-i18n="share">Share</th><th data-i18n="total">Total</th><th data-i18n="input">Input</th><th data-i18n="output">Output</th><th data-i18n="requests">Requests</th><th data-i18n="lastUsed">Last used</th></tr></thead><tbody id="usageRows"></tbody></table></div></div>
+      </div>
+    </section>
+    <section id="tracesPage" class="hidden">
+      <div class="toolbar"><div><h1 data-i18n="requestTraces">Request traces</h1><p class="lead" data-i18n="traceLead">Gateway routing, protocol translation, upstream timing, model output and Codex OTel events.</p></div><div class="toolbar-actions"><button class="btn" id="refreshTraces" data-i18n="refresh">Refresh</button><button class="btn danger" id="resetTraces" data-i18n="clear">Clear</button></div></div>
+      <div class="notice" data-i18n="traceNotice">Payloads are stored locally with secrets and inline image data redacted. The newest 50 traces are shown.</div>
+      <div id="traceList" class="trace-list"></div>
+    </section>
   </main>
 </div>
 <script>
 const $=s=>document.querySelector(s), state={data:null,selected:new Map()};
 const messages={
-  en:{providers:'Providers',overview:'Overview',traces:'Traces',systemLanguage:'System language',chooseModels:'Choose your models',chooseLead:'Connect a provider, search its live catalog, then select exactly what Codex Desktop should show.',visionFallback:'Vision fallback',visionHelp:'Images sent to text-only models are described here first, then returned to the selected model.',stopCodex:'Stop Codex',tokenOverview:'Token overview',usageLead:'Usage observed by the local gateway.',reset:'Reset',dailyTokens:'Daily tokens',models:'Models',model:'Model',share:'Share',total:'Total',input:'Input',output:'Output',requests:'Requests',lastUsed:'Last used',requestTraces:'Request traces',traceLead:'Gateway routing, protocol translation, upstream timing, model output and Codex OTel events.',refresh:'Refresh',clear:'Clear',traceNotice:'Payloads are stored locally with secrets and inline image data redacted. The newest 50 traces are shown.',startingGateway:'Starting gateway…',gateway:'Gateway 127.0.0.1:{port}',selectedOne:'{count} model selected',selectedMany:'{count} models selected',running:'Isolated Codex Desktop is running',stopped:'Codex is stopped',restart:'Restart with new configuration',saveLaunch:'Save & Launch Codex',disabledError:'Disabled — show an error',keySaved:'Key saved',keyRequired:'Key required',baseUrl:'Base URL',apiKey:'API key',savedReplace:'Saved — enter to replace',enterKey:'Enter API key',save:'Save',fetchModels:'Fetch models',searchModels:'Search {provider} models…',context:'{count} ctx',reasoning:'Reasoning',reasoning_none:'None',reasoning_minimal:'Minimal',reasoning_low:'Low',reasoning_medium:'Medium',reasoning_high:'High',reasoning_xhigh:'Extra high',reasoning_max:'Maximum',visionSaved:'Vision fallback saved.',visionDisabled:'Vision fallback disabled.',startingCodex:'Saving configuration and starting Codex Desktop…',launched:'Codex Desktop launched with the isolated configuration.',totalTokens:'Total tokens',noUsage:'No usage recorded yet.',events:'{count} events',noTraces:'No traces yet. Send a message from the isolated Codex app, then refresh.',confirmUsage:'Reset all locally recorded usage?',confirmTraces:'Clear all locally recorded traces?'},
-  zh:{providers:'供应商',overview:'用量总览',traces:'调用追踪',systemLanguage:'跟随系统',chooseModels:'选择模型',chooseLead:'连接供应商并搜索实时模型目录，只勾选需要在 Codex Desktop 中显示的模型。',visionFallback:'视觉兜底模型',visionHelp:'向纯文本模型发送图片时，先由此模型生成图片描述，再交还原模型继续处理。',stopCodex:'停止 Codex',tokenOverview:'Token 用量总览',usageLead:'本地网关记录的模型用量。',reset:'重置',dailyTokens:'每日 Token',models:'模型',model:'模型',share:'占比',total:'总量',input:'输入',output:'输出',requests:'请求数',lastUsed:'最后使用',requestTraces:'请求追踪',traceLead:'查看网关路由、协议转换、上游耗时、模型输出和 Codex OTel 事件。',refresh:'刷新',clear:'清空',traceNotice:'数据仅保存在本机，密钥和内联图片已脱敏。这里显示最新 50 条追踪。',startingGateway:'网关启动中…',gateway:'网关 127.0.0.1:{port}',selectedOne:'已选择 {count} 个模型',selectedMany:'已选择 {count} 个模型',running:'隔离的 Codex Desktop 正在运行',stopped:'Codex 已停止，Launcher 仍在运行',restart:'使用新配置重启',saveLaunch:'保存并启动 Codex',disabledError:'不启用 — 遇到图片时报错',keySaved:'密钥已保存',keyRequired:'需要密钥',baseUrl:'Base URL',apiKey:'API 密钥',savedReplace:'已保存 — 输入新密钥可替换',enterKey:'输入 API 密钥',save:'保存',fetchModels:'拉取模型',searchModels:'搜索 {provider} 模型…',context:'上下文 {count}',reasoning:'推理强度',reasoning_none:'关闭',reasoning_minimal:'极低',reasoning_low:'低',reasoning_medium:'中',reasoning_high:'高',reasoning_xhigh:'极高',reasoning_max:'最大',visionSaved:'视觉兜底模型已保存。',visionDisabled:'视觉兜底已关闭。',startingCodex:'正在保存配置并启动 Codex Desktop…',launched:'Codex Desktop 已使用隔离配置启动。',totalTokens:'Token 总量',noUsage:'暂无用量记录。',events:'{count} 个事件',noTraces:'暂无追踪。请在隔离的 Codex 应用中发送一条消息后刷新。',confirmUsage:'确定清空本机记录的全部用量吗？',confirmTraces:'确定清空本机记录的全部追踪吗？'}
+  en:{providers:'Providers',overview:'Overview',traces:'Traces',systemLanguage:'System language',appearanceAuto:'Auto',appearanceLight:'Light',appearanceDark:'Dark',chooseModels:'Choose your models',chooseLead:'Connect a provider, search its live catalog, then select exactly what Codex Desktop should show.',visionFallback:'Vision fallback',visionHelp:'Images sent to text-only models are described here first, then returned to the selected model.',stopCodex:'Stop Codex',tokenOverview:'Token overview',usageLead:'Usage observed by the local gateway.',reset:'Reset',dailyTokens:'Daily tokens',models:'Models',model:'Model',share:'Share',total:'Total',input:'Input',output:'Output',requests:'Requests',lastUsed:'Last used',requestTraces:'Request traces',traceLead:'Gateway routing, protocol translation, upstream timing, model output and Codex OTel events.',refresh:'Refresh',clear:'Clear',traceNotice:'Payloads are stored locally with secrets and inline image data redacted. The newest 50 traces are shown.',startingGateway:'Starting gateway…',gateway:'Gateway 127.0.0.1:{port}',selectedOne:'{count} model selected',selectedMany:'{count} models selected',running:'Isolated Codex Desktop is running',stopped:'Codex is stopped',restart:'Restart with new configuration',saveLaunch:'Save & Launch Codex',disabledError:'Disabled — show an error',keySaved:'Key saved',keyRequired:'Key required',baseUrl:'Base URL',apiKey:'API key',savedReplace:'Saved — enter to replace',enterKey:'Enter API key',save:'Save',fetchModels:'Fetch models',searchModels:'Search {provider} models…',context:'{count} ctx',reasoning:'Reasoning',reasoning_none:'None',reasoning_minimal:'Minimal',reasoning_low:'Low',reasoning_medium:'Medium',reasoning_high:'High',reasoning_xhigh:'Extra high',reasoning_max:'Maximum',visionSaved:'Vision fallback saved.',visionDisabled:'Vision fallback disabled.',startingCodex:'Saving configuration and starting Codex Desktop…',launched:'Codex Desktop launched with the isolated configuration.',totalTokens:'Total tokens',noUsage:'No usage recorded yet.',events:'{count} events',noTraces:'No traces yet. Send a message from the isolated Codex app, then refresh.',confirmUsage:'Reset all locally recorded usage?',confirmTraces:'Clear all locally recorded traces?'},
+  zh:{providers:'供应商',overview:'用量总览',traces:'调用追踪',systemLanguage:'跟随系统',appearanceAuto:'跟随系统',appearanceLight:'浅色',appearanceDark:'深色',chooseModels:'选择模型',chooseLead:'连接供应商并搜索实时模型目录，只勾选需要在 Codex Desktop 中显示的模型。',visionFallback:'视觉兜底模型',visionHelp:'向纯文本模型发送图片时，先由此模型生成图片描述，再交还原模型继续处理。',stopCodex:'停止 Codex',tokenOverview:'Token 用量总览',usageLead:'本地网关记录的模型用量。',reset:'重置',dailyTokens:'每日 Token',models:'模型',model:'模型',share:'占比',total:'总量',input:'输入',output:'输出',requests:'请求数',lastUsed:'最后使用',requestTraces:'请求追踪',traceLead:'查看网关路由、协议转换、上游耗时、模型输出和 Codex OTel 事件。',refresh:'刷新',clear:'清空',traceNotice:'数据仅保存在本机，密钥和内联图片已脱敏。这里显示最新 50 条追踪。',startingGateway:'网关启动中…',gateway:'网关 127.0.0.1:{port}',selectedOne:'已选择 {count} 个模型',selectedMany:'已选择 {count} 个模型',running:'隔离的 Codex Desktop 正在运行',stopped:'Codex 已停止，Launcher 仍在运行',restart:'使用新配置重启',saveLaunch:'保存并启动 Codex',disabledError:'不启用 — 遇到图片时报错',keySaved:'密钥已保存',keyRequired:'需要密钥',baseUrl:'Base URL',apiKey:'API 密钥',savedReplace:'已保存 — 输入新密钥可替换',enterKey:'输入 API 密钥',save:'保存',fetchModels:'拉取模型',searchModels:'搜索 {provider} 模型…',context:'上下文 {count}',reasoning:'推理强度',reasoning_none:'关闭',reasoning_minimal:'极低',reasoning_low:'低',reasoning_medium:'中',reasoning_high:'高',reasoning_xhigh:'极高',reasoning_max:'最大',visionSaved:'视觉兜底模型已保存。',visionDisabled:'视觉兜底已关闭。',startingCodex:'正在保存配置并启动 Codex Desktop…',launched:'Codex Desktop 已使用隔离配置启动。',totalTokens:'Token 总量',noUsage:'暂无用量记录。',events:'{count} 个事件',noTraces:'暂无追踪。请在隔离的 Codex 应用中发送一条消息后刷新。',confirmUsage:'确定清空本机记录的全部用量吗？',confirmTraces:'确定清空本机记录的全部追踪吗？'}
 };
-function languageSetting(){return state.data?.language||localStorage.getItem('launcher-language')||'auto'}
+function readSetting(key){try{return localStorage.getItem(key)}catch{return null}}
+function writeSetting(key,value){try{localStorage.setItem(key,value)}catch{}}
+function languageSetting(){return state.data?.language||readSetting('launcher-language')||'auto'}
 function locale(){const setting=languageSetting();return setting==='auto'?(navigator.language.toLowerCase().startsWith('zh')?'zh':'en'):setting}
 function t(key,vars={}){let text=messages[locale()][key]||messages.en[key]||key;for(const [name,value] of Object.entries(vars))text=text.replaceAll(`{${name}}`,value);return text}
 const fmt=n=>new Intl.NumberFormat(locale()==='zh'?'zh-CN':'en-US').format(n||0);
+const darkQuery=window.matchMedia('(prefers-color-scheme: dark)');
+function appearanceSetting(){return readSetting('launcher-appearance')||'auto'}
+function applyAppearance(){const setting=appearanceSetting();const dark=setting==='dark'||(setting==='auto'&&darkQuery.matches);document.documentElement.dataset.appearance=dark?'dark':'light';document.querySelectorAll('.appearance button').forEach(button=>button.classList.toggle('active',button.dataset.mode===setting))}
 function applyI18n(){document.documentElement.lang=locale()==='zh'?'zh-CN':'en';document.querySelectorAll('[data-i18n]').forEach(el=>el.textContent=t(el.dataset.i18n));$('#language').value=languageSetting();$('#language option[value=auto]').textContent=t('systemLanguage');if(state.data){renderProviders();renderStatus();renderVisionFallback();route()}}
 async function api(url,options={}){const r=await fetch(url,{headers:{'content-type':'application/json'},...options});const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={error:text}}if(!r.ok)throw new Error(data.error?.message||data.error||`Request failed (${r.status})`);return data}
 function message(text,error=false){$('#message').innerHTML=text?`<div class="notice ${error?'error':''}">${escapeHtml(text)}</div>`:''}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-async function load(){state.data=await api('/api/state');localStorage.setItem('launcher-language',state.data.language||'auto');state.selected=new Map(state.data.selectedModels.map(m=>[`${m.providerId}/${m.id}`,m]));applyI18n()}
+async function load(){state.data=await api('/api/state');writeSetting('launcher-language',state.data.language||'auto');state.selected=new Map(state.data.selectedModels.map(m=>[`${m.providerId}/${m.id}`,m]));applyI18n()}
 function renderStatus(){const s=state.data.status;$('#gatewayState').textContent=t('gateway',{port:s.port});$('#selectionCount').textContent=t(state.selected.size===1?'selectedOne':'selectedMany',{count:state.selected.size});$('#runState').textContent=s.appRunning?t('running'):t('stopped');$('#stopButton').classList.toggle('hidden',!s.appRunning);$('#launchButton').textContent=s.appRunning?t('restart'):t('saveLaunch')}
 function renderVisionFallback(){const select=$('#visionFallback'),vision=[...state.selected.entries()].filter(([,m])=>m.inputModalities?.includes('image'));select.innerHTML=`<option value="">${escapeHtml(t('disabledError'))}</option>`+vision.map(([key,m])=>`<option value="${escapeHtml(key)}">${escapeHtml(`[${m.providerId}] ${m.displayName||m.id}`)}</option>`).join('');if(vision.some(([key])=>key===state.data.visionFallbackModel))select.value=state.data.visionFallbackModel;else select.value='';select.disabled=!vision.length}
 function reasoningSelect(key,model){const selected=state.selected.get(key);const levels=selected?.reasoningLevels||model.reasoningLevels||[];if(!selected||!levels.length)return'';const current=levels.includes(selected.defaultReasoningLevel)?selected.defaultReasoningLevel:(model.defaultReasoningLevel||levels[0]);return `<select class="reasoning" title="${escapeHtml(t('reasoning'))}" aria-label="${escapeHtml(t('reasoning'))}">${levels.map(level=>`<option value="${escapeHtml(level)}" ${level===current?'selected':''}>${escapeHtml(t(`reasoning_${level}`))}</option>`).join('')}</select>`}
-function renderProviders(){const root=$('#providers');root.innerHTML='';for(const p of state.data.providers){const cache=state.data.modelCache[p.id]?.models||[];const card=document.createElement('div');card.className='card';card.innerHTML=`<div class="provider-head"><div class="provider-name">${escapeHtml(p.name)}</div><span class="pill">${t(p.hasKey?'keySaved':'keyRequired')}</span></div><label>${t('baseUrl')}<input type="text" class="base" value="${escapeHtml(p.baseUrl)}"></label><label>${t('apiKey')}<input type="password" class="key" placeholder="${escapeHtml(t(p.hasKey?'savedReplace':'enterKey'))}"></label><div class="actions"><button class="btn save">${t('save')}</button><button class="btn fetch">${t('fetchModels')}</button></div><div class="models ${cache.length?'':'hidden'}"><input type="search" class="search" placeholder="${escapeHtml(t('searchModels',{provider:p.name}))}"><div class="model-list"></div></div>`;root.appendChild(card);const draw=()=>{const q=card.querySelector('.search').value.toLowerCase();const list=card.querySelector('.model-list');list.innerHTML='';for(const m of cache.filter(m=>(m.id+' '+m.displayName).toLowerCase().includes(q))){const key=`${p.id}/${m.id}`,row=document.createElement('div');row.className='model';row.innerHTML=`<input type="checkbox" aria-label="${escapeHtml(m.displayName)}" ${state.selected.has(key)?'checked':''}><span><strong>${escapeHtml(m.displayName)}</strong><small>${escapeHtml(m.id)}</small></span><span class="model-side">${reasoningSelect(key,m)}<span class="context">${m.contextWindow?escapeHtml(t('context',{count:fmt(m.contextWindow)})):''}</span></span>`;const checkbox=row.querySelector('input[type=checkbox]');checkbox.onchange=e=>{if(e.target.checked){const existing=state.selected.get(key);state.selected.set(key,{providerId:p.id,...m,defaultReasoningLevel:existing?.defaultReasoningLevel||m.defaultReasoningLevel})}else state.selected.delete(key);renderStatus();renderVisionFallback();draw();saveSelection().catch(err=>message(err.message,true))};const reasoning=row.querySelector('.reasoning');if(reasoning){reasoning.onchange=e=>{const selected=state.selected.get(key);if(selected){selected.defaultReasoningLevel=e.target.value;state.selected.set(key,selected);saveSelection().catch(err=>message(err.message,true))}}}list.appendChild(row)}};if(cache.length)draw();card.querySelector('.search').oninput=draw;card.querySelector('.save').onclick=()=>saveProvider(p,card,false);card.querySelector('.fetch').onclick=()=>saveProvider(p,card,true)}}
+function renderProviders(){const root=$('#providers');root.innerHTML='';for(const p of state.data.providers){const cache=state.data.modelCache[p.id]?.models||[];const card=document.createElement('div');card.className='card';card.innerHTML=`<div class="provider-head"><div class="provider-name">${escapeHtml(p.name)}</div><span class="pill ${p.hasKey?'':'warn'}">${t(p.hasKey?'keySaved':'keyRequired')}</span></div><label>${t('baseUrl')}<input type="text" class="base" value="${escapeHtml(p.baseUrl)}"></label><label>${t('apiKey')}<input type="password" class="key" placeholder="${escapeHtml(t(p.hasKey?'savedReplace':'enterKey'))}"></label><div class="actions"><button class="btn save">${t('save')}</button><button class="btn fetch">${t('fetchModels')}</button></div><div class="models ${cache.length?'':'hidden'}"><input type="search" class="search" placeholder="${escapeHtml(t('searchModels',{provider:p.name}))}"><div class="model-list"></div></div>`;root.appendChild(card);const draw=()=>{const q=card.querySelector('.search').value.toLowerCase();const list=card.querySelector('.model-list');list.innerHTML='';for(const m of cache.filter(m=>(m.id+' '+m.displayName).toLowerCase().includes(q))){const key=`${p.id}/${m.id}`,row=document.createElement('div');row.className='model';row.innerHTML=`<input type="checkbox" aria-label="${escapeHtml(m.displayName)}" ${state.selected.has(key)?'checked':''}><span><strong>${escapeHtml(m.displayName)}</strong><small>${escapeHtml(m.id)}</small></span><span class="model-side">${reasoningSelect(key,m)}<span class="context">${m.contextWindow?escapeHtml(t('context',{count:fmt(m.contextWindow)})):''}</span></span>`;const checkbox=row.querySelector('input[type=checkbox]');checkbox.onchange=e=>{if(e.target.checked){const existing=state.selected.get(key);state.selected.set(key,{providerId:p.id,...m,defaultReasoningLevel:existing?.defaultReasoningLevel||m.defaultReasoningLevel})}else state.selected.delete(key);renderStatus();renderVisionFallback();draw();saveSelection().catch(err=>message(err.message,true))};const reasoning=row.querySelector('.reasoning');if(reasoning){reasoning.onchange=e=>{const selected=state.selected.get(key);if(selected){selected.defaultReasoningLevel=e.target.value;state.selected.set(key,selected);saveSelection().catch(err=>message(err.message,true))}}}list.appendChild(row)}};if(cache.length)draw();card.querySelector('.search').oninput=draw;card.querySelector('.save').onclick=()=>saveProvider(p,card,false);card.querySelector('.fetch').onclick=()=>saveProvider(p,card,true)}}
 async function saveProvider(p,card,fetchAfter){try{message('');const body={baseUrl:card.querySelector('.base').value,apiKey:card.querySelector('.key').value};await api(`/api/providers/${p.id}`,{method:'POST',body:JSON.stringify(body)});if(fetchAfter)await api(`/api/providers/${p.id}/models`,{method:'POST',body:'{}'});await load()}catch(e){message(e.message,true)}}
 async function saveSelection(){const data=await api('/api/selection',{method:'POST',body:JSON.stringify({models:[...state.selected.values()]})});state.data.visionFallbackModel=data.visionFallbackModel;renderVisionFallback()}
 $('#visionFallback').onchange=async e=>{try{const data=await api('/api/vision-fallback',{method:'POST',body:JSON.stringify({model:e.target.value})});state.data.visionFallbackModel=data.visionFallbackModel;message(t(e.target.value?'visionSaved':'visionDisabled'))}catch(err){message(err.message,true);renderVisionFallback()}};
 $('#launchButton').onclick=async()=>{try{message(t('startingCodex'));$('#launchButton').disabled=true;await saveSelection();if(state.data.status.appRunning)await api('/api/stop',{method:'POST'});await api('/api/launch',{method:'POST'});message(t('launched'));await load()}catch(e){message(e.message,true)}finally{$('#launchButton').disabled=false}};
 $('#stopButton').onclick=async()=>{try{await api('/api/stop',{method:'POST'});await load()}catch(e){message(e.message,true)}};
-async function loadUsage(){const u=await api(`/api/usage?days=${$('#days').value}`);$('#metrics').innerHTML=[['totalTokens',u.total.total],['input',u.total.input],['output',u.total.output],['requests',u.total.requests]].map(x=>`<div class="card metric"><span>${t(x[0])}</span><strong>${fmt(x[1])}</strong></div>`).join('');const max=Math.max(1,...u.days.map(d=>d.total));$('#chart').innerHTML=u.days.map(d=>`<div class="column" title="${d.date}: ${fmt(d.total)}"><i style="height:${Math.max(2,d.total/max*160)}px"></i><small>${d.date.slice(5)}</small></div>`).join('');const total=Math.max(1,u.total.total);$('#usageRows').innerHTML=u.models.map(m=>`<tr><td><strong>${escapeHtml(m.model)}</strong></td><td><div class="bar"><i style="width:${m.total/total*100}%"></i></div> ${(m.total/total*100).toFixed(1)}%</td><td>${fmt(m.total)}</td><td>${fmt(m.input)}</td><td>${fmt(m.output)}</td><td>${fmt(m.requests)}</td><td>${m.lastUsedAt?new Date(m.lastUsedAt).toLocaleString():'—'}</td></tr>`).join('')||`<tr><td colspan="7" style="color:var(--muted)">${t('noUsage')}</td></tr>`}
+async function loadUsage(){const u=await api(`/api/usage?days=${$('#days').value}`);$('#metrics').innerHTML=[['totalTokens',u.total.total],['input',u.total.input],['output',u.total.output],['requests',u.total.requests]].map(x=>`<div class="card metric"><span>${t(x[0])}</span><strong>${fmt(x[1])}</strong></div>`).join('');const max=Math.max(1,...u.days.map(d=>d.total));const plotHeight=Math.max(80,($('#chart').clientHeight||210)-52);$('#chart').innerHTML=u.days.map(d=>`<div class="column" title="${d.date}: ${fmt(d.total)}"><i style="height:${Math.max(2,d.total/max*plotHeight)}px"></i><small>${d.date.slice(5)}</small></div>`).join('');const total=Math.max(1,u.total.total);$('#usageRows').innerHTML=u.models.map(m=>`<tr><td><strong>${escapeHtml(m.model)}</strong></td><td><div class="bar"><i style="width:${m.total/total*100}%"></i></div> ${(m.total/total*100).toFixed(1)}%</td><td>${fmt(m.total)}</td><td>${fmt(m.input)}</td><td>${fmt(m.output)}</td><td>${fmt(m.requests)}</td><td>${m.lastUsedAt?new Date(m.lastUsedAt).toLocaleString():'—'}</td></tr>`).join('')||`<tr><td colspan="7" style="color:var(--muted)">${t('noUsage')}</td></tr>`}
 function tracePayload(event){const data={...event};for(const k of ['id','at','traceId','source','kind'])delete data[k];return Object.keys(data).length?`<pre>${escapeHtml(JSON.stringify(data,null,2))}</pre>`:''}
 async function loadTraces(){const data=await api('/api/traces?limit=50');$('#traceList').innerHTML=data.traces.map(trace=>`<details class="card trace"><summary><span class="trace-title"><strong>${escapeHtml(trace.model||trace.traceId)}</strong><small>${escapeHtml(trace.traceId)}</small></span><span class="trace-meta">${new Date(trace.startedAt).toLocaleString()} · ${t('events',{count:trace.events.length})}</span><span class="status ${escapeHtml(trace.status)}">${escapeHtml(trace.status)}</span></summary><div class="timeline">${trace.events.map(e=>`<div class="trace-event"><div><code>${escapeHtml(e.kind)}</code> <span class="trace-meta">${escapeHtml(e.source||'gateway')} · ${new Date(e.at).toLocaleTimeString()}${e.durationMs!=null?' · '+fmt(e.durationMs)+' ms':''}</span></div>${tracePayload(e)}</div>`).join('')}</div></details>`).join('')||`<div class="card empty">${t('noTraces')}</div>`}
-function route(){const page=location.hash.slice(1)||'settings';$('#settingsPage').classList.toggle('hidden',page!=='settings');$('#overviewPage').classList.toggle('hidden',page!=='overview');$('#tracesPage').classList.toggle('hidden',page!=='traces');document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='overview')loadUsage();if(page==='traces')loadTraces()}
-document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>location.hash=b.dataset.page);addEventListener('hashchange',route);$('#language').onchange=async e=>{const language=e.target.value;localStorage.setItem('launcher-language',language);if(state.data)state.data.language=language;applyI18n();try{await api('/api/language',{method:'POST',body:JSON.stringify({language})})}catch(err){message(err.message,true)}};$('#days').onchange=loadUsage;$('#resetUsage').onclick=async()=>{if(confirm(t('confirmUsage'))){await api('/api/usage/reset',{method:'POST'});loadUsage()}};
+function currentPage(){return location.hash.slice(1)||'settings'}
+function route(){const page=currentPage();$('#settingsPage').classList.toggle('hidden',page!=='settings');$('#overviewPage').classList.toggle('hidden',page!=='overview');$('#tracesPage').classList.toggle('hidden',page!=='traces');document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page));if(page==='overview')loadUsage();if(page==='traces')loadTraces()}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{location.hash=b.dataset.page});
+document.querySelectorAll('.appearance button').forEach(b=>b.onclick=()=>{writeSetting('launcher-appearance',b.dataset.mode);applyAppearance()});
+darkQuery.addEventListener('change',()=>{if(appearanceSetting()==='auto')applyAppearance()});
+let resizeTimer;addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(currentPage()==='overview')loadUsage().catch(()=>{})},200)});
+addEventListener('hashchange',route);$('#language').onchange=async e=>{const language=e.target.value;writeSetting('launcher-language',language);if(state.data)state.data.language=language;applyI18n();try{await api('/api/language',{method:'POST',body:JSON.stringify({language})})}catch(err){message(err.message,true)}};$('#days').onchange=loadUsage;$('#resetUsage').onclick=async()=>{if(confirm(t('confirmUsage'))){await api('/api/usage/reset',{method:'POST'});loadUsage()}};
 $('#refreshTraces').onclick=loadTraces;$('#resetTraces').onclick=async()=>{if(confirm(t('confirmTraces'))){await api('/api/traces/reset',{method:'POST'});loadTraces()}};
-applyI18n();load().catch(e=>message(e.message,true));route();setInterval(async()=>{try{state.data.status=(await api('/api/state')).status;renderStatus()}catch{}},3000);
+applyAppearance();applyI18n();load().catch(e=>message(e.message,true));route();setInterval(async()=>{try{state.data.status=(await api('/api/state')).status;renderStatus()}catch{}},3000);
 </script>
 </body></html>

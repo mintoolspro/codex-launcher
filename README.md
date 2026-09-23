@@ -29,6 +29,8 @@ npm install
 
 The window lets you save a provider URL/key, fetch the live model catalog, search it, select models, choose each model's default reasoning effort, configure an optional vision fallback, and launch Codex. The interface supports English and Chinese; **System language** is the default. Closing the window or clicking **Stop Codex** leaves the menu-bar Launcher active.
 
+The interface follows the macOS look and feel: system font and rounded, translucent panels; the accent colour stays close to the system blue; and the appearance follows macOS by default, with **Auto / Light / Dark** override stored locally. The layout reflows from a two-column desktop window down to a narrow, phone-sized viewport: below 1080 px the launch bar stacks, below 900 px the sidebar becomes a sticky top bar, and below 640 px the token chart and usage table scroll horizontally instead of squeezing their columns.
+
 Keys are stored in macOS Keychain under service `pro.mintools.codex-launcher`. If Keychain is unavailable, the fallback is an AES-GCM encrypted, machine-bound file with mode `0600`. Local control APIs expose only `hasKey`.
 
 ## Isolation and launch behavior

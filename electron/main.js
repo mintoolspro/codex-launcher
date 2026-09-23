@@ -26,7 +26,7 @@ process.on('unhandledRejection', (error) => logFatal('Unhandled rejection', erro
 function createWindow(route = '') {
   if (!window || window.isDestroyed()) {
     window = new BrowserWindow({
-      width: 1080, height: 760, minWidth: 820, minHeight: 620,
+      width: 1120, height: 780, minWidth: 380, minHeight: 480,
       title: 'Codex Launcher',
       icon: path.join(__dirname, '..', 'assets', 'icon.png'),
       show: false,
